@@ -11,6 +11,15 @@ EDCB Material WebUI
 
 おかげさまでド素人にも作成することができました。**xtne6f氏に感謝します**
 
+# オリジナルからの変更点
+- トップページを追加。
+- 番組表等からトップページへの遷移リンクを追加等
+
+## イメージ
+![](./img/index.png)
+
+![](./img/番組表.png)
+
 
 # 導入
 最低限の動作に必要なファイルは、EDCBの[releases](https://github.com/xtne6f/EDCB/releases)の`EDCB-work-plus-s-bin.zip`で入手可能です  

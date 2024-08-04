@@ -225,8 +225,46 @@ function NetworkType(onid)
 end
 
 function NetworkIndex(v)
-  return not v and {'地デジ','ワンセグ','BS','CS','124/128度CS','その他'}
-    or NetworkType(v.onid)=='地デジ' and ((v.service_type or v.serviceType)==0x01 and 1 or (v.partialReceptionFlag or v.partialFlag) and 2) or NetworkType(v.onid)=='BS' and 3 or NetworkType(v.onid):find('^110CS') and 4 or NetworkType(v.onid)=='124/128CS'and 5 or 6
+  -- 番組表区分判定ロジック
+  if not v then
+    return { '宮城', '北海道・東北', '関東・甲信越', '東海・北陸', '関西', '中国・四国', '九州・沖縄', '地デジ', 'ワンセグ', 'BS', 'CS', '124/128度CS', 'その他' }
+  end
+
+  local isHokkaidoTohokuDigital = (v.onid >= 0x7FB0 and v.onid <= 0x7FBF) or (v.onid >= 0x7EF0 and v.onid <= 0x7F5F) or
+  (v.onid >= 0x7E90 and v.onid <= 0x7EEF)
+  local isKantoKoshinetsuDigital = (v.onid >= 0x7DF0 and v.onid <= 0x7E8F) or (v.onid >= 0x7FE0 and v.onid <= 0x7FEF)
+  local isTokaiHokurikuDigital = (v.onid >= 0x7FC0 and v.onid <= 0x7FCF) or (v.onid >= 0x7D80 and v.onid <= 0x7DEF)
+  local isKansaiDisital = (v.onid >= 0x7FD0 and v.onid <= 0x7FDF) or (v.onid >= 0x7D20 and v.onid <= 0x7D7F)
+  local isChugokuShikokuDisital = (v.onid >= 0x7F90 and v.onid <= 0x7FAF) or (v.onid >= 0x7CA0 and v.onid <= 0x7D1F)
+  local isKyushuDigital = (v.onid >= 0x7880 and v.onid <= 0x7C8F)
+  -- 住んでる地域を一番先頭にカスタムする onidの範囲を定義すること
+  local isMiyagiDigital = v.onid >= 0x7EE0 and v.onid <= 0x7EEF
+
+  if isMiyagiDigital then
+    return 1 -- 宮城
+  elseif isHokkaidoTohokuDigital then
+    return 2 -- 北海道・東北
+  elseif isKantoKoshinetsuDigital then
+    return 3 -- 関東・甲信越
+  elseif isTokaiHokurikuDigital then
+    return 4 -- 東海・北陸
+  elseif isKansaiDisital then
+    return 5 -- 関西
+  elseif isChugokuShikokuDisital then
+    return 6 -- 中国・四国
+  elseif isKyushuDigital then
+    return 7 -- 九州・沖縄
+  elseif NetworkType(v.onid) == '地デジ' then
+    return (v.service_type or v.serviceType) == 0x01 and 8 or (v.partialReceptionFlag or v.partialFlag) and 9 or 13
+  elseif NetworkType(v.onid) == 'BS' then
+    return 10
+  elseif NetworkType(v.onid):find('^110CS') then
+    return 11
+  elseif NetworkType(v.onid) == '124/128CS' then
+    return 12
+  else
+    return 13
+  end
 end
 
 --表示するサービスを選択する

@@ -50,6 +50,7 @@ function Template(temp)
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
 <meta name="theme-color" content="]=]..edcb.GetPrivateProfile('SET','theme','#3f51b5',INI)..[=[">
+<!-- タイトルの編集 -->
 <title>EpgTimer</title>
 <link rel="icon" href="]=]..path..[=[img/EpgTimer.ico">
 <link rel="apple-touch-icon" sizes="256x256" href="]=]..path..[=[img/apple-touch-icon.png">
@@ -120,18 +121,19 @@ s:Append([=[
           </form>
         </div>
       </div>
-      <div class="navigation-container mdl-cell--order-1">
-        <nav class="navigation mdl-navigation">
+      <button id="notification" class="notification hidden mdl-button mdl-js-button mdl-button--icon mdl-cell--order-3"><i class="material-icons mdl-badge--no-background mdl-badge--overlap" data-badge="0">notifications_none</i></button>
+]=]..((#suspend>0 or temp.menu) and '      <button id="menu" class="mdl-button mdl-js-button mdl-button--icon mdl-cell--order-3"><i class="material-icons">more_vert</i></button>\n' or '')..[=[
+      <span class="mdl-layout-title">]=]..(temp.title or '')..[=[</span>
+      <div class="mdl-layout-spacer"></div>
+      <div class="mdl-navigation-container">
+      <nav class="mdl-navigation">
+          <a class="mdl-navigation__link" href="/">トップページ</a>
           <a class="mdl-navigation__link" href="]=]..path..[=[epg.html">番組表</a>
           <a class="mdl-navigation__link" href="]=]..path..[=[reserve.html">予約一覧</a>
           <a class="mdl-navigation__link" href="]=]..path..[=[autoaddepg.html">EPG予約</a>
           <a class="mdl-navigation__link" href="]=]..path..[=[recinfo.html">録画結果</a>
         </nav>
       </div>
-      <button id="notification" class="notification hidden mdl-button mdl-js-button mdl-button--icon mdl-cell--order-3"><i class="material-icons mdl-badge--no-background mdl-badge--overlap" data-badge="0">notifications_none</i></button>
-]=]..((#suspend>0 or temp.menu) and '      <button id="menu" class="mdl-button mdl-js-button mdl-button--icon mdl-cell--order-3"><i class="material-icons">more_vert</i></button>\n' or '')..[=[
-      <span class="mdl-layout-title">]=]..(temp.title or '')..[=[</span>
-      <div class="mdl-layout-spacer"></div>
     </div>
 ]=]
 
@@ -144,6 +146,7 @@ s:Append([=[
     <div id="spinner" class="mdl-shadow--3dp"><div class="mdl-spinner mdl-js-spinner"></div></div>
   </header>
   <div class="mdl-layout__drawer">
+    <!-- タイトルの編集 -->
     <span class="mdl-layout-title">EpgTimer</span>
     <nav class="mdl-navigation">
 ]=]
@@ -153,6 +156,7 @@ s:Append([=[
 
 ..(olympic and '      <a class="mdl-navigation__link" href="'..path..'epgcustom.html?Olympic="><i class="material-icons">sports</i>オリンピック</a>' or '')
 ..[=[
+      <a class="mdl-navigation__link" href="/"><i class="material-icons">home</i>トップページ</a>
       <a class="mdl-navigation__link" href="]=]..path..[=[epg.html"><i class="material-icons">dashboard</i>番組表</a>
       <a class="mdl-navigation__link" href="]=]..path..[=[epgweek.html"><i class="material-icons">view_week</i>週間番組表</a>
       <a class="mdl-navigation__link" href="]=]..path..[=[onair.html"><i class="material-icons">tv</i>放送中</a>
