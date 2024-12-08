@@ -222,7 +222,7 @@ end
 function NetworkType(onid)
   local NT = {'地デジ','BS','BS4K','110CS1','110CS2','124/128CS','その他'}
   return not onid and NT
-    or NetworkType()[0x7880<=onid and onid<=0x7FE8 and 1 or onid==4 and 2 or onid=11 and 3 or onid==6 and 4 or onid==7 and 5 or onid==10 and 6 or 7]
+    or NetworkType()[0x7880<=onid and onid<=0x7FE8 and 1 or onid==4 and 2 or onid==11 and 3 or onid==6 and 4 or onid==7 and 5 or onid==10 and 6 or 7]
 end
 
 function NetworkIndex(v)
