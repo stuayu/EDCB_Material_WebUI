@@ -220,16 +220,19 @@ function RecModeTextList()
 end
 
 function NetworkType(onid)
-  return not onid and {'地デジ','BS','110CS1','110CS2','124/128CS','その他'}
-    or NetworkType()[0x7880<=onid and onid<=0x7FE8 and 1 or onid==4 and 2 or onid==6 and 3 or onid==7 and 4 or onid==10 and 5 or 6]
+  local NT = {'地デジ','BS','BS4K','110CS1','110CS2','124/128CS','その他'}
+  return not onid and NT
+    or NetworkType()[0x7880<=onid and onid<=0x7FE8 and 1 or onid==4 and 2 or onid=11 and 3 or onid==6 and 4 or onid==7 and 5 or onid==10 and 6 or 7]
 end
 
 function NetworkIndex(v)
+  local regions = { '宮城', '北海道・東北', '関東・甲信越', '東海・北陸', '関西', '中国・四国', '九州・沖縄', '地デジ', 'ワンセグ', 'BS', 'BS4K', 'CS', '124/128度CS', 'その他' }
   -- 番組表区分判定ロジック
   if not v then
-    return { '宮城', '北海道・東北', '関東・甲信越', '東海・北陸', '関西', '中国・四国', '九州・沖縄', '地デジ', 'ワンセグ', 'BS', 'CS', '124/128度CS', 'その他' }
+    return regions
   end
 
+  -- 地域別のonidを定義
   local isHokkaidoTohokuDigital = (v.onid >= 0x7FB0 and v.onid <= 0x7FBF) or (v.onid >= 0x7EF0 and v.onid <= 0x7F5F) or
   (v.onid >= 0x7E90 and v.onid <= 0x7EEF)
   local isKantoKoshinetsuDigital = (v.onid >= 0x7DF0 and v.onid <= 0x7E8F) or (v.onid >= 0x7FE0 and v.onid <= 0x7FEF)
@@ -258,12 +261,14 @@ function NetworkIndex(v)
     return (v.service_type or v.serviceType) == 0x01 and 8 or (v.partialReceptionFlag or v.partialFlag) and 9 or 13
   elseif NetworkType(v.onid) == 'BS' then
     return 10
-  elseif NetworkType(v.onid):find('^110CS') then
+  elseif NetworkType(v.onid) == 'BS4K' then
     return 11
-  elseif NetworkType(v.onid) == '124/128CS' then
+  elseif NetworkType(v.onid):find('^110CS') then
     return 12
-  else
+  elseif NetworkType(v.onid) == '124/128CS' then
     return 13
+  else
+    return 14 -- その他
   end
 end
 
