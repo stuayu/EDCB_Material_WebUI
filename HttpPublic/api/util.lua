@@ -1,4 +1,4 @@
-INI='Setting\\HttpPublic.ini'
+INI='Setting/HttpPublic.ini'
 
 --情報通知ログの表示を許可するかどうか
 SHOW_NOTIFY_LOG=tonumber(edcb.GetPrivateProfile('SET','SHOW_NOTIFY_LOG',true,INI))~=0
@@ -867,6 +867,8 @@ function GetVarServiceID(qs,n,occ,leextra)
     tsid=tonumber(tsid)
     sid=tonumber(sid)
     x=tonumber(x)
+  else
+    onid,tsid,sid,x=GetVarInt(qs,'onid'), GetVarInt(qs,'tsid'), GetVarInt(qs,'sid'), (leextra and (GetVarInt(qs,'eid') or GetVarInt(qs,'startTime')) or nil)
   end
   if onid and onid==math.floor(onid) and onid>=0 and onid<=65535 and
      tsid and tsid==math.floor(tsid) and tsid>=0 and tsid<=65535 and
@@ -1215,13 +1217,14 @@ function GetLibraryPathList()
   local list={}
   local esc=edcb.htmlEscape
   edcb.htmlEscape=0
-  local ini=edcb.GetPrivateProfile('SET','LibraryPath',0,INI)=='0' and 'Common.ini' or INI
+  local notSet=edcb.GetPrivateProfile('SET','LibraryPath',0,INI)=='0'
+  local ini=notSet and 'Common.ini' or INI
   local n=tonumber(edcb.GetPrivateProfile('SET','RecFolderNum',0,ini))
-  if n<=0 and ini=='Common.ini' then
+  if n<=0 and notSet then
     --録画保存フォルダが未設定のときは設定関係保存フォルダになる
-    list[1]=edcb.GetPrivateProfile('SET','DataSavePath','',ini)
+    list[1]=edcb.GetPrivateProfile('SET','DataSavePath','','Common.ini')
     if list[1]=='' then
-      list[1]=edcb.GetPrivateProfile('SET','ModulePath','',ini)..'\\Setting'
+      list[1]=PathAppend(EdcbModulePath(),'Setting')
     end
   end
   for i=0,n-1 do

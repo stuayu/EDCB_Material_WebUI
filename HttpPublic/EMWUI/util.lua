@@ -1,19 +1,28 @@
 function Version(a)
   local ver={
     css='240726',
-    common='240725',
+    common='2401012',
     tvguide='240726',
-    player='240725',
+    player='2401014',
     onair='240725',
     library='240725',
     setting='240705',
-    datastream='240719',
-    legacy='20240430',
+    datastream='241014',
+    legacy='20241007',
   }
   return '?ver='..ver[a]
 end
 
-dofile(mg.document_root..'\\api\\util.lua')
+--Windowsかどうか
+WIN32=not package.config:find('^/')
+
+--OSのディレクトリ区切りとなる文字集合
+DIR_SEPS=WIN32 and '\\/' or '/'
+
+--OSの標準ディレクトリ区切り
+DIR_SEP=WIN32 and '\\' or '/'
+
+dofile(mg.document_root:gsub('['..DIR_SEPS..']*$',DIR_SEP)..'api'..DIR_SEP..'util.lua')
 
 SIDE_PANEL=tonumber(edcb.GetPrivateProfile('GUIDE','sidePanel',true,INI))~=0
 
@@ -96,7 +105,7 @@ if temp.progres then
   local r=type(temp.progres)=='table' and temp.progres or nil
   local dur=r and r.startTime.hour*3600+r.startTime.min*60+r.startTime.sec+r.durationSecond or nil
   s:Append('<dialog id="dialog_progres" class="mdl-dialog">\n<div class="mdl-dialog__content">\n'
-    ..'<form id="progres" class="api" method="POST'..(r and '" action="'..PathToRoot()..'api/setReserve?id='..r.reserveID or '')
+    ..'<form id="progres" class="api" method="POST'..(r and '" action="'..PathToRoot()..'api/SetReserve?id='..r.reserveID or '')
     ..'"><div>\n'..(r and r.eid==65535 and '' or '<p>プログラム予約化は元に戻せません<br>番組を特定できなくなるため追従もできません。</p>\n')
     ..'予約日時\n<div class="textfield-container"><div class="mdl-textfield mdl-js-textfield"><input required class="mdl-textfield__input" type="date" name="startdate" id="startdate" min="1900-01-01" max="2999-12-31" value="'..(r and string.format('%d-%02d-%02d', r.startTime.year,r.startTime.month,r.startTime.day) or '2018-01-01')
     ..'"><label class="mdl-textfield__label" for="startdate"></label></div></div>\n<div class="textfield-container"><div class="textfield-container"><div class="mdl-textfield mdl-js-textfield"><input required class="mdl-textfield__input" type="time" name="starttime" step="1" id="starttime" value="'..(r and string.format('%02d:%02d:%02d', r.startTime.hour,r.startTime.min,r.startTime.sec) or '00:00:00')
@@ -432,11 +441,12 @@ function RecSettingTemplate(rs)
   s=s..'<div class="mdl-cell mdl-cell--12-col mdl-grid mdl-grid--no-spacing">\n<div class="mdl-cell mdl-cell--3-col mdl-cell--2-col-tablet mdl-cell--middle">録画後実行bat</div>\n'
     ..'<div class="pulldown mdl-cell mdl-cell--6-col mdl-cell--9-col-desktop mdl-grid mdl-grid--no-spacing"><select name="batFilePath">\n<option value=""'..(batFilePath=='' and ' selected' or '')..'>なし\n'
 
-  local batPath=edcb.GetPrivateProfile('SET','batPath',CurrentDir..'\\bat',INI)..'\\'
-  for j,w in ipairs(edcb.FindFile(PathAppend(batPath,'*'), 0) or {}) do
-    if not w.isdir and (w.name:find('%.[Bb][Aa][Tt]$') or w.name:find('%.[Pp][Ss]1$') or w.name:find('%.[Ll][Uu][Aa]$')) then
-      s=s..'<option value="'..batPath..w.name..'"'..(batFilePath==batPath..w.name and ' selected' or '')..'>'..w.name..'\n'
-      batFilePath=(batFilePath==batPath..w.name and '' or batFilePath)
+  local batDir=edcb.GetPrivateProfile('SET','batPath',PathAppend(CurrentDir,'bat'),INI)
+  for j,w in ipairs(edcb.FindFile(PathAppend(batDir,'*'), 0) or {}) do
+    if not w.isdir and (w.name:find('%.[Bb][Aa][Tt]$') or w.name:find('%.[Pp][Ss]1$') or w.name:find('%.[Ll][Uu][Aa]$')) or w.name:find('%.[Ss][Hh]$') then
+      local batPath=PathAppend(batDir,w.name)
+      s=s..'<option value="'..batPath..'"'..(batFilePath:lower()==batPath:lower() and ' selected' or '')..'>'..w.name..'\n'
+      batFilePath=batFilePath:lower()==batPath:lower() and '' or batFilePath
     end
   end
   if batFilePath~='' then
@@ -741,7 +751,8 @@ function PlayerTemplate(video, liveOrAudio)
 <div class="remote-control-status remote-control-receiving-status" style="display: none;">データ取得中...</div>
 <div class="remote-control-status remote-control-networking-status" style="display: none;">通信中...</div></div>
 <div class="data-broadcasting-browser-container"><div class="data-broadcasting-browser-content"></div></div>
-]=] or '')..(live and USE_LIVEJK and '<div id="comment-control" style="display:none"><div class="mdl-textfield mdl-js-textfield"><input class="mdl-textfield__input" type="text" id="comm"><label class="mdl-textfield__label" for="comm"></label></div><button id="commSend" class="mdl-button mdl-js-button mdl-button--fab mdl-button--mini-fab mdl-button--primary"><i class="material-icons">send</i></button></div>\n' or '')..[=[
+]=] or '')..(live and USE_LIVEJK and '<div id="comment-control" style="display:none"><div class="mdl-textfield mdl-js-textfield"><input class="nico mdl-textfield__input" type="text" id="comm"><label class="mdl-textfield__label" for="comm"></label></div><button id="commSend" class="mdl-button mdl-js-button mdl-button--fab mdl-button--mini-fab mdl-button--primary"><i class="material-icons">send</i></button></div>\n' or '')
+..((live and USE_LIVEJK or not live and JKRDLOG_PATH) and '<div id="danmaku-container"></div>' or '')..[=[
 <div id="playerUI" class="is-visible">
 <div id="titlebar" class="bar"></div>
 <div id="control" class="bar">

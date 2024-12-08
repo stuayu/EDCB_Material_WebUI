@@ -1,5 +1,5 @@
 -- vim:set ft=lua:
-dofile(mg.document_root..'\\api\\util.lua')
+dofile(mg.script_name:gsub('[^\\/]*$','')..'util.lua')
 
 onair=GetVarInt(mg.request_info.query_string,'onair',0,1)==1
 
@@ -95,8 +95,8 @@ else
     end
     if v.shortInfo then
       table.insert(ct, '<event_name>'
-        ..v.shortInfo.event_name..'</event_name><event_text>'
-        ..v.shortInfo.text_char..'</event_text>')
+        ..EdcbHtmlEscape(v.shortInfo.event_name)..'</event_name><event_text>'
+        ..EdcbHtmlEscape(v.shortInfo.text_char)..'</event_text>')
     end
     if v.contentInfoList then
       for j,w in ipairs(v.contentInfoList) do
@@ -120,7 +120,7 @@ else
     table.insert(ct, '<freeCAFlag>'..(v.freeCAFlag and 1 or 0)..'</freeCAFlag>')
     if not basic then
       if v.extInfo then
-        table.insert(ct, '<event_ext_text>'..v.extInfo.text_char..'</event_ext_text>')
+        table.insert(ct, '<event_ext_text>'..EdcbHtmlEscape(v.extInfo.text_char)..'</event_ext_text>')
       end
       if v.componentInfo then
         table.insert(ct, '<videoInfo><stream_content>'
@@ -162,7 +162,6 @@ else
 end
 cl=0
 for i,v in ipairs(ct) do cl=cl+#v end
-dofile(mg.document_root..'\\api\\util.lua')
 mg.write(Response(200, 'text/xml', 'utf-8', cl) ..'\r\n')
 if mg.request_info.request_method~='HEAD' then
   for i,v in ipairs(ct) do mg.write(v) end

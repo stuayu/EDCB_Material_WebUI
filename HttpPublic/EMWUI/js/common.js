@@ -60,7 +60,7 @@ const ConvertTime = (t, show_sec, show_ymd) => {
 	return `${show_ymd ? `${t.getUTCFullYear()}/${zero(t.getUTCMonth()+1)}/${zero(t.getUTCDate())}(${WEEK[t.getUTCDay()]}) ` : ''
 		}${zero(t.getUTCHours())}:${zero(t.getUTCMinutes())}${show_sec && t.getUTCSeconds() != 0 ? `<small>:${zero(t.getUTCSeconds())}</small>` : ''}`;
 }
-const ConvertText = a => a.replace(/(https?:\/\/[\w?=&.\/-;#~%-]+(?![\w\s?&.\/;#~%"=-]*>))/g, '<a href="$1" target="_blank">$1</a>').replace(/\n/g,'<br>');
+const ConvertText = a => !a ? '' : a.replace(/(https?:\/\/[\w?=&.\/-;#~%-]+(?![\w\s?&.\/;#~%"=-]*>))/g, '<a href="$1" target="_blank">$1</a>').replace(/\n/g,'<br>');
 const ConvertTitle = a => !a ? '' : a.replace(/　/g,' ').replace(/\[(新|終|再|交|映|手|声|多|字|二|Ｓ|Ｂ|SS|無|Ｃ|S1|S2|S3|MV|双|デ|Ｄ|Ｎ|Ｗ|Ｐ|HV|SD|天|解|料|前|後|初|生|販|吹|PPV|演|移|他|収)\]/g, '<span class="mark mdl-color--accent mdl-color-text--accent-contrast">$1</span>');
 const ConvertService = d => `<img class="logo" src="${ROOT}api/logo?onid=${d.onid}&sid=${d.sid}"><span>${d.service}</span>`;
 
@@ -122,7 +122,7 @@ const Notify = {
 		const date = createViewDate(d.starttime);
 
 		const $notifyList = $('<li>', {id: `notify_${d.eid}`, class: 'mdl-list__item mdl-list__item--two-line', data: {start: d.starttime}, append: [
-			$('<span>', {class: 'mdl-list__item-primary-content', click: () => location.href = `epginfo.html?onid=${d.onid}&tsid=${d.tsid}&sid=${d.sid}&eid=${d.eid}`, append: [
+			$('<span>', {class: 'mdl-list__item-primary-content', click: () => location.href = `epginfo.html?id=${d.onid}-${d.tsid}-${d.sid}-${d.eid}`, append: [
 				$('<span>', {html: d.title}),
 				$('<span>', {class: 'mdl-list__item-sub-title', text: `${zero(date.getUTCMonth()+1)}/${zero(date.getUTCDate())}(${WEEK[date.getUTCDay()]}) ${zero(date.getUTCHours())}:${zero(date.getUTCMinutes())} ${d.service}`}) ]}),
 			$('<span>', {class: 'mdl-list__item-secondary-content', append: [
@@ -201,8 +201,8 @@ const toObj = {
 
 		if (recinfo){
 			d.recinfoid = e.num('ID');
-			if (e.children('programInfo').length){
-				const programInfo=e.txt('programInfo').match(/^[\s\S]*?\n\n([\s\S]*?)\n+(?:詳細情報\n)?([\s\S]*?)\n+ジャンル : \n([\s\S]*)\n\n映像 : ([\s\S]*)\n音声 : ([\s\S]*?)\n\n([\s\S]*)\n$/);
+			const programInfo = e.txt('programInfo').match(/^[\s\S]*?\n\n([\s\S]*?)\n+(?:詳細情報\n)?([\s\S]*?)\n+ジャンル : \n([\s\S]*)\n\n映像 : ([\s\S]*)\n音声 : ([\s\S]*?)\n\n([\s\S]*)\n$/);
+			if (programInfo){
 				d.text = programInfo[1];
 				d.text_ext = programInfo[2];
 				d.genre = programInfo[3];
@@ -262,7 +262,7 @@ const toObj = {
 			d.starttime = new Date(`${e.txt('startDate').replace(/\//g,'-')}T${e.txt('startTime')}+09:00`).getTime(),
 			d.duration = e.num('duration');
 			if (d.duration) d.endtime = new Date(d.starttime + d.duration*1000).getTime();
-			d.service_name = e.txt('service_name');
+			d.service = e.txt('service_name');
 			d.onid = e.num('ONID');
 			d.tsid = e.num('TSID');
 			d.sid = e.num('SID');
@@ -392,9 +392,9 @@ const setEpgInfo = d => {
 	$('#summary p').html( ConvertText(d.text) );
 	$('#ext').html( ConvertText(d.text_ext) );
 
-	$('#genreInfo').html(() => typeof d.genre == 'string' ? `<li>${d.genre.replace(/\n/g,'<li>')}` : d.genre.map(e => `<li>${e.component_type_name}`).join(''));
-	$('#videoInfo').html(() => typeof d.video == 'string' ? `<li>${d.video.replace(/\n/g,'<li>')}` : d.video.map(e => `<li>${e.component_type_name} ${e.text}`).join(''));
-	$('#audioInfo').html(() => typeof d.audio == 'string' ? `<li>${d.audio.replace(/\n/g,'<li>')}` : d.audio.map(e => `<li>${e.component_type_name} ${e.text} : ${{1:'16',2:'22.05',3:'24',5:'32',6:'44.1',7:'48'}[e.sampling_rate]}kHz`).join(''));
+	$('#genreInfo').html(() => !d.genre ? '' : typeof d.genre == 'string' ? `<li>${d.genre.replace(/\n/g,'<li>')}` : d.genre.map(e => `<li>${e.component_type_name}`).join(''));
+	$('#videoInfo').html(() => !d.video ? '' : typeof d.video == 'string' ? `<li>${d.video.replace(/\n/g,'<li>')}` : d.video.map(e => `<li>${e.component_type_name} ${e.text}`).join(''));
+	$('#audioInfo').html(() => !d.audio ? '' : typeof d.audio == 'string' ? `<li>${d.audio.replace(/\n/g,'<li>')}` : d.audio.map(e => `<li>${e.component_type_name} ${e.text} : ${{1:'16',2:'22.05',3:'24',5:'32',6:'44.1',7:'48'}[e.sampling_rate]}kHz`).join(''));
 
 	if (d.recinfoid){
 		$('#otherInfo').html(d.other ? `<li>${d.other.replace(/\n/g,'<li>')}` : '');
@@ -643,11 +643,11 @@ const setRecInfo = $e => {
 
 //予約を反映
 const setReserve = (r, fn) => {
-	const id = r.id ?? setRecSettting(r).id;
+	const id = setRecSettting(r).id;
 
-	$('#set').attr('action', `${ROOT}api/setReserve?id=${id}`);
-	$('#del').attr('action', `${ROOT}api/setReserve?id=${id}`);
-	$('#progres').attr('action', `${ROOT}api/setReserve?id=${id}`);
+	$('#set').attr('action', `${ROOT}api/SetReserve?id=${id}`);
+	$('#del').attr('action', `${ROOT}api/SetReserve?id=${id}`);
+	$('#progres').attr('action', `${ROOT}api/SetReserve?id=${id}`);
 	$('#action').attr('name', 'change');
 	$('#reserved, #delreseved, #toprogres').show();
 	$('[name=presetID]').data('reseveid', id).val(65535);
@@ -665,7 +665,7 @@ const setReserve = (r, fn) => {
 const setDefault = mark => {
 	setRecSettting(PresetList['0']);
 
-	$('#set').attr('action', `${ROOT}api/setReserve`);
+	$('#set').attr('action', `${ROOT}api/SetReserve`);
 	$('#action').attr('name', 'add');
 	$('#reserved, #delreseved, #toprogres').hide();
 	$('[name=presetID]').val(0);
@@ -725,12 +725,12 @@ const fixRecToggleSW = (d, $e = $('.open')) => {
 					type: 'checkbox',
 					checked: d.recMode != 5,
 					change: e => {
-						$(e.currentTarget).data(toggle, $(e.currentTarget).prop('checked') ? 1 : 0);
+						$e.data('toggle', d.recMode == 5 ? 1 : 0);
 						addReserve($(e.currentTarget))} }) });
 			componentHandler.upgradeElement($switch.get(0));
 
 			const $mark = $('<span>').html($switch);
-			$e.data('oneclick', 0).html($mark);
+			$e.removeData('oneclick').html($mark);
 			setTimeout(() => {
 				$e.parent('tr').addClass('start');
 				$mark.addClass('recmark').empty();
@@ -838,7 +838,7 @@ const getEpgInfo = ($e, d = $e.data()) => {
 const sendReserve = (d, fn) => {
 	d.ctok = ctok;
 	showSpinner(true);
-	$.get(`${ROOT}api/setReserve`, d).done(xml => {
+	$.get(`${ROOT}api/SetReserve`, d).done(xml => {
 		if ($(xml).find('success').length){
 			fn.success($(xml).find('reserveinfo'));
 		}else{
@@ -1172,10 +1172,10 @@ $(function(){
 		if ($(e).data('starttime')) setTimeout(() => $(e).addClass('start').children('.flag').children('span').addClass('recmark').empty(), $(e).data('starttime')-Date.now())
 		setTimeout(() => $(e).children('.flag').data('id', false).children('span').remove(), $(e).data('endtime')-Date.now());
 	});
-	$('.doSearch').click(e => {
+	$('.submitEX').click(e => {
 		const d = $(e.currentTarget).data();
-		$('#ctok').val(d.ctok);
-		$('#search').attr('action', d.action).submit();
+		$(`#${d.form} .ctok`).val(d.ctok);
+		$(`#${d.form}`).attr('action', d.action).submit();
 	});
 
 	//サブミット
