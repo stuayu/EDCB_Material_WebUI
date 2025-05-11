@@ -3,6 +3,7 @@
 -- ファイルをタイムシフト再生できる: http://localhost:5510/xcode.lua?fname=video/foo.ts
 
 dofile(mg.script_name:gsub('[^\\/]*$','')..'util.lua')
+dofile(mg.script_name:gsub('[^\\/]*$','')..'jkconst.lua')
 
 -- HLSの開始はPOSTでなければならない
 query=AssertPost()
@@ -17,8 +18,11 @@ offset=GetVarInt(query,'offset',0,100) or 0
 ofssec=GetVarInt(query,'ofssec',0,100000)
 option=XCODE_OPTIONS[GetVarInt(query,'option',1,#XCODE_OPTIONS) or 1]
 audio2=(GetVarInt(query,'audio2',0,1) or 0)+(option.audioStartAt or 0)
-filter=GetVarInt(query,'fast')==1 and (GetVarInt(query,'cinema')==1 and option.filterCinemaFast or option.filterFast)
-fastRate=filter and XCODE_FAST or 1
+fastRate=GetVarInt(query,'fast',1,#XCODE_FAST_RATES)
+fastRate=fastRate and XCODE_FAST_RATES[fastRate] or 1
+filter=fastRate~=1 and (GetVarInt(query,'cinema')==1 and option.filterCinemaFastFunc and option.filterCinemaFastFunc(fastRate) or
+                        option.filterFastFunc and option.filterFastFunc(fastRate))
+fastRate=filter and fastRate or 1
 filter=filter or (GetVarInt(query,'cinema')==1 and option.filterCinema or option.filter or '')
 hlsKey=mg.get_var(query,'hls')
 hls4=GetVarInt(query,'hls4',0) or 0
@@ -34,8 +38,9 @@ reload=mg.get_var(query,'reload')
 loadKey=reload or mg.get_var(query,'load') or ''
 
 -- クエリのハッシュをキーとし、同一キーアクセスは出力中のインデックスファイルを返す
-hlsKey=hlsKey and mg.md5('xcode:'..hlsKey..':'..fpath..':'..option.xcoder..':'..option.option..':'..offset..':'..audio2..':'..filter..':'..caption..':'..output[2])
+hlsKey=hlsKey and mg.md5('xcode:'..hlsKey..':'..fpath..':'..option.xcoder..':'..option.option..':'..(ofssec or offset)..':'..audio2..':'..filter..':'..caption..':'..output[2])
 
+-- トランスコードを開始し、HLSの場合はインデックスファイルの情報、それ以外はMP4などのストリーム自体を返す
 function OpenTranscoder()
   local searchName='xcode-'..mg.md5(fpath..':'..loadKey):sub(17)
   if XCODE_SINGLE then
@@ -71,27 +76,29 @@ function OpenTranscoder()
   local tsreadex=FindToolsCommand('tsreadex')
   local asyncbuf=FindToolsCommand('asyncbuf')
   local tsmemseg=FindToolsCommand('tsmemseg')
-  local xcoder=''
-  if WIN32 then
-    for s in option.xcoder:gmatch('[^|]+') do
-      xcoder=PathAppend(tools,s)
-      if EdcbFindFilePlain(xcoder) then break end
-      xcoder=s
+  local cmd=''
+  if filter~=':' then
+    local xcoder=''
+    if WIN32 then
+      for s in option.xcoder:gmatch('[^|]+') do
+        xcoder=PathAppend(tools,s)
+        if EdcbFindFilePlain(xcoder) then break end
+        xcoder=s
+      end
+      xcoder='"'..xcoder..'"'
+    else
+      xcoder=('|'..option.xcoder:gsub('%.exe$','')):match('[\\/|]([0-9A-Za-z._-]+)$')
+      xcoder=xcoder and FindToolsCommand(xcoder) or ':'
     end
-    xcoder='"'..xcoder..'"'
-  else
-    xcoder=('|'..option.xcoder:gsub('%.exe$','')):match('[\\/|]([0-9A-Za-z._-]+)$')
-    xcoder=xcoder and FindToolsCommand(xcoder) or ':'
+    -- gsub('%%','%%%%')は置換文字列中の特殊文字を無効化するため
+    cmd=' | '..xcoder..' '..option.option
+      :gsub('$AUDIO',audio2)
+      :gsub('$FILTER',(filter:gsub('%%','%%%%')))
+      :gsub('$CAPTION',(caption:gsub('%%','%%%%')))
+      :gsub('$OUTPUT',(output[2]:gsub('%%','%%%%')))
   end
 
-  local cmd=xcoder..' '..option.option
-    :gsub('$SRC','-')
-    :gsub('$AUDIO',audio2)
-    :gsub('$DUAL','')
-    :gsub('$FILTER',(filter:gsub('%%',WIN32 and '%%%%' or '%%')))
-    :gsub('$CAPTION',(caption:gsub('%%',WIN32 and '%%%%' or '%%')))
-    :gsub('$OUTPUT',(output[2]:gsub('%%',WIN32 and '%%%%' or '%%')))
-  if fastRate~=1 and option.editorFast then
+  if fastRate~=1 and option.editorFast and option.editorOptionFastFunc then
     local editor=''
     if WIN32 then
       for s in option.editorFast:gmatch('[^|]+') do
@@ -103,9 +110,9 @@ function OpenTranscoder()
     else
       editor=('|'..option.editorFast:gsub('%.exe$','')):match('[\\/|]([0-9A-Za-z._-]+)$') or ':'
     end
-    cmd=editor..' '..option.editorOptionFast..' | '..cmd
+    cmd=' | '..editor..' '..option.editorOptionFastFunc(fastRate)..cmd
   end
-  if XCODE_LOG then
+  if XCODE_LOG and cmd~='' then
     local log=mg.script_name:gsub('[^\\/]*$','')..'log'
     if not EdcbFindFilePlain(log) then
       edcb.os.execute('mkdir '..QuoteCommandArgForPath(log))
@@ -114,14 +121,14 @@ function OpenTranscoder()
     log=PathAppend(log,'xcode-'..os.time()..'-'..mg.md5(cmd):sub(29)..'.txt')
     local f=edcb.io.open(log,'w')
     if f then
-      f:write(cmd..'\n\n')
+      f:write(cmd:sub(4)..'\n\n')
       f:close()
-      cmd=cmd..' 2>>'..QuoteCommandArgForPath(log)
+      cmd=cmd..' 2>>'..QuoteCommandArgForPath(log,hlsKey)
     end
   end
   if hlsKey then
     -- セグメント長は既定値(2秒)なので概ねキーフレーム(4～5秒)間隔
-    cmd=cmd..' | '..tsmemseg..(hls4>0 and ' -4' or '')..' -a 10 -r 100 -m 8192 -d 3 '..(WIN32 and '' or '-g '..QuoteCommandArgForPath(EdcbModulePath())..' ')..hlsKey..'_'
+    cmd=cmd..' | '..tsmemseg..(hls4>0 and ' -4' or '')..' -a 10 -r 100 -m 8192 -d 3 '..(WIN32 and '' or '-g '..QuoteCommandArgForPath(EdcbModulePath(),hlsKey)..' ')..hlsKey..'_'
   elseif XCODE_BUF>0 then
     cmd=cmd..' | '..asyncbuf..' '..XCODE_BUF..' '..XCODE_PREPARE
   end
@@ -129,7 +136,7 @@ function OpenTranscoder()
   local sync=WIN32 and edcb.GetPrivateProfile('SET','KeepDisk',0,'EpgTimerSrv.ini')~='0'
 
   -- "-z"はプロセス検索用
-  cmd=tsreadex..' -z edcb-legacy-'..searchName..' -s '..offset..' -l 16384 -t 6'..(sync and ' -m 1' or '')..' -x 18/38/39 -n -1 -a 9 -b 1 -c 5 -u 2 '..QuoteCommandArgForPath(fpath)..' | '..cmd
+  cmd=tsreadex..' -z edcb-legacy-'..searchName..' -s '..offset..' -l 16384 -t 6'..(sync and ' -m 1' or '')..' -x 18/38/39 -n -1 -a 9 -b 1 -c 5 -u 2 '..QuoteCommandArgForPath(fpath,hlsKey)..cmd
   if hlsKey then
     -- 極端に多く開けないようにする
     local indexCount=#(edcb.FindFile(TsmemsegPipePath('*_','00'),10) or {})
@@ -162,10 +169,15 @@ function OpenPsiDataArchiver()
 end
 
 function OpenJikkyoReader(tot,nid,sid)
-  local id=GetJikkyoID(nid,sid)
-  if not id or not JKRDLOG_PATH then return nil end
-  local cmd=QuoteCommandArgForPath(JKRDLOG_PATH)..' -r '..(fastRate*100)..' '..id..' '..(tot+ofssec)..' 0'
-  return edcb.io.popen(WIN32 and '"'..cmd..'"' or cmd)
+  if JKRDLOG_PATH then
+    local jkID=GetJikkyoID(nid,sid)
+    if not jkID then
+      return 'Unable to determine Jikkyo ID.'
+    end
+    local cmd=(WIN32 and QuoteCommandArgForPath(JKRDLOG_PATH) or FindToolsCommand(JKRDLOG_PATH))..' -r '..(fastRate*100)..' jk'..jkID..' '..(tot+ofssec)..' 0'
+    return edcb.io.popen(WIN32 and '"'..cmd..'"' or cmd)
+  end
+  return nil
 end
 
 function ReadPsiDataChunk(f,trailerSize,trailerRemainSize)
@@ -214,11 +226,11 @@ function CreateHlsPlaylist(f)
       if segAvailable and (not segIncomplete or nextSegAvailable) then
         if not hasSeg then
           a[#a+1]='#EXT-X-MEDIA-SEQUENCE:'..segCount..'\n'
-            ..(isMp4 and '#EXT-X-MAP:URI="mp4init.lua?c='..hlsKey..'"\n' or '')
+            ..(isMp4 and '#EXT-X-MAP:URI="mp4init?c='..hlsKey..'"\n' or '')
             ..(endList and '#EXT-X-ENDLIST\n' or '')
           hasSeg=true
         end
-        a[#a+1]='#EXTINF:'..segDuration..',\nsegment.lua?c='..hlsKey..('_%02d_%d\n'):format(segIndex,segCount)
+        a[#a+1]='#EXTINF:'..segDuration..',\nsegment?c='..hlsKey..('_%02d_%d\n'):format(segIndex,segCount)
       end
       buf=buf:sub(17)
     end
@@ -279,17 +291,10 @@ if fpath then
             end
           end
           fname='xcode.psc.txt'
-        elseif XCODE then
+        else
           f:close()
           f=OpenTranscoder()
           fname='xcode.'..output[1]
-        elseif hlsKey then
-          -- トランスコードなしのライブストリーミングには未対応
-          f:close()
-          f=nil
-        else
-          -- 容量確保には未対応
-          f:seek('set',offset)
         end
       end
     end
@@ -316,7 +321,12 @@ elseif psidata or jikkyo then
         failed=not buf or not mg.write(mg.base64_encode(buf))
         if failed then break end
       end
-      if jikkyo then
+      if jikkyo and type(f.jk)=='string' then
+        -- メッセージを送って混合でなければ終了
+        failed=not mg.write('<!-- M='..f.jk..' -->\n') or not psidata
+        f.jk=nil
+      end
+      if jikkyo and f.jk then
         for i=1,3 do
           -- 1/fastRate秒間隔でブロックされる
           buf=ReadJikkyoChunk(f.jk)
@@ -332,11 +342,23 @@ elseif psidata or jikkyo then
     until failed
   end
   if f.psi then f.psi:close() end
-  if f.jk then f.jk:close() end
+  if f.jk and type(f.jk)~='string' then f.jk:close() end
 elseif hlsKey then
   -- インデックスファイルを返す
-  m3u=CreateHlsPlaylist(f)
-  f:close()
+  i=1
+  repeat
+    m3u=CreateHlsPlaylist(f)
+    f:close()
+    if not m3u:find('#EXT%-X%-MEDIA%-SEQUENCE:') then
+      -- 最初のセグメントができるまでは2秒だけ応答保留する
+      if i>10 then break end
+    else
+      break
+    end
+    edcb.Sleep(200)
+    f=OpenTsmemsegPipe(hlsKey..'_','00')
+    i=i+1
+  until not f
   ct=CreateContentBuilder()
   ct:Append(m3u)
   ct:Finish()
@@ -344,24 +366,18 @@ elseif hlsKey then
 else
   mg.write(Response(200,mg.get_mime_type(fname))..'Content-Disposition: filename='..fname..'\r\n\r\n')
   if mg.request_info.request_method~='HEAD' then
-    retry=0
     while true do
       buf=f:read(188*128)
       if buf and #buf~=0 then
-        retry=0
         if not mg.write(buf) then
           -- キャンセルされた
           mg.cry('canceled')
           break
         end
       else
-        -- 終端に達した。4秒間この状態が続けば対象ファイルへの追記が終息したとみなす
-        retry=retry+1
-        if XCODE or retry > 20 then
-          mg.cry('end')
-          break
-        end
-        edcb.Sleep(200)
+        -- 終端に達した
+        mg.cry('end')
+        break
       end
     end
   end

@@ -1,14 +1,18 @@
 function Version(a)
   local ver={
-    css='240726',
-    common='2401012',
-    tvguide='240726',
-    player='2401014',
-    onair='240725',
-    library='240725',
-    setting='240705',
-    datastream='241014',
-    legacy='20241007',
+    css='250501',
+    common='250430',
+    tvguide='241224',
+    player='250507',
+    onair='250314',
+    library='250413',
+    setting='241224',
+    datastream='250501',
+    legacy='20250403',
+    hls='v1.5.15',
+    aribb24='v1.11.5',
+    bml='f3c89c9',
+    danmaku='6c13364',
   }
   return '?ver='..ver[a]
 end
@@ -63,7 +67,7 @@ function Template(temp)
 <title>EpgTimer</title>
 <link rel="icon" href="]=]..path..[=[img/EpgTimer.ico">
 <link rel="apple-touch-icon" sizes="256x256" href="]=]..path..[=[img/apple-touch-icon.png">
-<link rel="manifest" href="]=]..path..[=[manifest.json">
+<link rel="manifest" href="]=]..path..[=[manifest.json" crossorigin="use-credentials">
 ]=]..css..[=[
 <link rel="stylesheet" href="]=]..path..[=[css/default.css]=]..Version('css')..[=[">
 <link rel="stylesheet" href="]=]..path..[=[css/user.css">
@@ -82,7 +86,7 @@ function Template(temp)
 <script src="]=]..path..[=[js/jquery.hammer.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" integrity="sha384-geWF76RCwLtnZ8qwWowPQNguL3RmwHVBC9FhGdlKrxdiJJigb/j/68SIy3Te4Bkz" crossorigin="anonymous"></script>
 ]=]
-..'<script>const ROOT=\''..PathToRoot()..(temp.searchlinks and '\';const calendar_op=\'&amp;authuser='..edcb.GetPrivateProfile('CALENDAR','authuser','0',INI)..'&amp;src='..edcb.GetPrivateProfile('CALENDAR','src','',INI) or '')..'\';</script>\n'
+..'<script>const ROOT=\''..PathToRoot()..'\';const PAGE_COUNT='..edcb.GetPrivateProfile('SET','PAGE_COUNT','30',INI)..';'..(temp.searchlinks and searchLinksScriptTemplate() or '')..'</script>\n'
 ..'<script src="'..path..'js/common.js'..Version('common')..'"></script>\n'
 ..(temp.js or '')
 
@@ -101,8 +105,8 @@ for i,v in ipairs(temp.dialog or {}) do
     ..'</div>\n</dialog>\n')
 end
 
-if temp.progres then
-  local r=type(temp.progres)=='table' and temp.progres or nil
+if temp.reserve or hasSIDE_PANEL then
+  local r=temp.reserve
   local dur=r and r.startTime.hour*3600+r.startTime.min*60+r.startTime.sec+r.durationSecond or nil
   s:Append('<dialog id="dialog_progres" class="mdl-dialog">\n<div class="mdl-dialog__content">\n'
     ..'<form id="progres" class="api" method="POST'..(r and '" action="'..PathToRoot()..'api/SetReserve?id='..r.reserveID or '')
@@ -119,7 +123,7 @@ if temp.progres then
 end
 
 s:Append([=[
-<div class="mdl-layout mdl-js-layout mdl-layout--fixed-header]=]..(not temp.Scrollable and ' mdl-layout--fixed-tabs' or '')..[=[">
+<div class="mdl-layout mdl-js-layout mdl-layout--fixed-header]=]..(temp.fixedTabs and ' mdl-layout--fixed-tabs' or '')..[=[">
   <header class="mdl-layout__header">
     <div class="mdl-layout__header-row mdl-color--primary">
       <div class="search-box mdl-cell--order-2 mdl-textfield mdl-js-textfield mdl-textfield--expandable mdl-textfield--floating-label mdl-textfield--align-right">
@@ -175,6 +179,7 @@ s:Append([=[
       <a class="mdl-navigation__link" href="]=]..path..[=[reserve.html"><i class="material-icons">schedule</i>予約一覧</a>
       <a class="mdl-navigation__link" href="]=]..path..[=[tunerreserve.html"><i class="material-icons">tune</i>チューナー別</a>
       <a class="mdl-navigation__link" href="]=]..path..[=[autoaddepg.html"><i class="material-icons">update</i>EPG予約</a>
+      <a class="mdl-navigation__link" href="]=]..path..[=[autoaddmanual.html"><i class="material-icons">timer</i>プログラム予約</a>
       <a class="mdl-navigation__link" href="]=]..path..[=[library.html"><i class="material-icons">storage</i>ライブラリ</a>
       <a class="mdl-navigation__link" href="]=]..path..[=[recinfo.html"><i class="material-icons">history</i>録画結果</a>
       <a class="mdl-navigation__link" href="]=]..path..[=[search.html"><i class="material-icons">search</i>検索</a>
@@ -184,9 +189,9 @@ s:Append([=[
         <p>
           <i class="material-icons">copyright</i>
           <span class="">EMWUI</span>
-          <a class="mdl-button mdl-js-button mdl-button--icon" href="https://github.com/EMWUI/EDCB_Material_WebUI" target="_blank"><i class="material-icons">feedback</i></a>
-          <a class="mdl-button mdl-js-button mdl-button--icon" href="https://www.amazon.jp/hz/wishlist/ls/P4DSM5GQILMI" target="_blank"><i class="material-icons">thumb_down</i></a>
-          <a class="mdl-color-text--accent mdl-button mdl-js-button mdl-button--icon" href="https://www.amazon.jp/hz/wishlist/ls/1FFBR5ZLZK8EY" target="_blank"><i class="material-icons">heart_plus</i></a>
+          <a class="mdl-button mdl-js-button mdl-button--icon" href="https://github.com/EMWUI/EDCB_Material_WebUI" target="_blank" rel="noreferrer"><i class="material-icons">feedback</i></a>
+          <a class="mdl-button mdl-js-button mdl-button--icon" href="https://www.amazon.jp/hz/wishlist/ls/P4DSM5GQILMI" target="_blank" rel="noreferrer"><i class="material-icons">thumb_down</i></a>
+          <a class="mdl-color-text--accent mdl-button mdl-js-button mdl-button--icon" href="https://www.amazon.jp/hz/wishlist/ls/1FFBR5ZLZK8EY" target="_blank" rel="noreferrer"><i class="material-icons">heart_plus</i></a>
         </p>
         <ul>
           <li><a class="mdl-color-text--cyan" href="]=]..PathToRoot()..[=[api/showlog?c=8192">情報通知ログ</a></li>
@@ -203,7 +208,7 @@ s:Append([=[
 ..(temp.video and [=[
   <div id="popup" class="window mdl-layout__obfuscator">
     <div class="mdl-card mdl-shadow--16dp">
-]=]..PlayerTemplate('<video id="video"></video>', temp.video=='live')..[=[
+]=]..PlayerTemplate('', temp.video=='live')..[=[
       <span class="close stop icons mdl-badge" data-badge="&#xE5CD;"></span>
     </div>
   </div>
@@ -301,31 +306,35 @@ end
 --録画設定フォームのテンプレート
 function RecSettingTemplate(rs)
   local rsdef=(edcb.GetReserveData(0x7FFFFFFF) or {}).recSetting
-  local s='<div class="mdl-cell mdl-cell--12-col mdl-grid mdl-grid--no-spacing">\n<div class="mdl-cell mdl-cell--3-col mdl-cell--2-col-tablet mdl-cell--middle">録画モード</div>\n'
-    ..'<div class="pulldown mdl-cell mdl-cell--6-col mdl-cell--9-col-desktop mdl-grid mdl-grid--no-spacing"><select name="recMode">'
+  local s='<div class="mdl-cell mdl-cell--12-col mdl-grid mdl-grid--no-spacing">\n<div class="mdl-cell mdl-cell--3-col mdl-cell--2-col-tablet mdl-cell--middle">有効</div>\n'
+  ..'<div class="mdl-layout-spacer mdl-cell--hide-desktop mdl-cell--hide-tablet"></div>\n'
+  ..'<div><label for="recEnabled" class="mdl-switch mdl-js-switch"><input id="recEnabled" class="mdl-switch__input" name="recEnabled"'..Checkbox(rs.recMode~=5)..'><span class="mdl-switch__label"></span></label></div></div>\n'
+
+  ..'<div class="mdl-cell mdl-cell--12-col mdl-grid mdl-grid--no-spacing">\n<div class="mdl-cell mdl-cell--3-col mdl-cell--2-col-tablet mdl-cell--middle">録画モード</div>\n'
+  ..'<div class="pulldown mdl-cell mdl-cell--6-col mdl-cell--9-col-desktop mdl-grid mdl-grid--no-spacing"><select name="recMode">'
     for i=1,#RecModeTextList() do
-      s=s..'\n<option value="'..(i-1)..'"'..(rs.recMode==i-1 and ' selected' or '')..'>'..RecModeTextList()[i]
+      s=s..'\n<option value="'..(i-1)..'"'..Selected((rs.recMode~=5 and rs.recMode or rs.noRecMode or 1)==i-1)..'>'..RecModeTextList()[i]
     end
     s=s..'\n</select></div></div>\n'
 
     ..'<div class="mdl-cell mdl-cell--12-col mdl-grid mdl-grid--no-spacing">\n<div class="mdl-cell mdl-cell--3-col mdl-cell--2-col-tablet mdl-cell--middle">イベントリレー追従</div>\n'
     ..'<div class="mdl-layout-spacer mdl-cell--hide-desktop mdl-cell--hide-tablet"></div>\n'
-    ..'<div><label for="tuijyuuFlag" class="mdl-switch mdl-js-switch"><input id="tuijyuuFlag" type="checkbox" class="mdl-switch__input" name="tuijyuuFlag" value="1"'..(rs.tuijyuuFlag and ' checked' or '')..'><span class="mdl-switch__label"></span></label></div></div>\n'
+    ..'<div><label for="tuijyuuFlag" class="mdl-switch mdl-js-switch"><input id="tuijyuuFlag" class="mdl-switch__input" name="tuijyuuFlag"'..Checkbox(rs.tuijyuuFlag)..'><span class="mdl-switch__label"></span></label></div></div>\n'
 
     ..'<div class="mdl-cell mdl-cell--12-col mdl-grid mdl-grid--no-spacing">\n<div class="mdl-cell mdl-cell--3-col mdl-cell--2-col-tablet mdl-cell--middle">優先度</div>\n'
     ..'<div class="mdl-layout-spacer mdl-cell--hide-desktop mdl-cell--hide-tablet"></div>\n'
     ..'<div class="pulldown mdl-cell mdl-cell--1-col mdl-grid mdl-grid--no-spacing"><select name="priority">'
     for i=1,5 do
-      s=s..'\n<option value="'..i..'"'..(rs.priority==i and ' selected' or '')..'>'..i
+      s=s..'\n<option value="'..i..'"'..Selected(rs.priority==i)..'>'..i
     end
     s=s..'\n</select></div></div>\n'
 
     ..'<div class="mdl-cell mdl-cell--12-col mdl-grid mdl-grid--no-spacing">\n<div class="mdl-cell mdl-cell--3-col mdl-cell--2-col-tablet mdl-cell--middle">ぴったり（？）録画</div>\n'
     ..'<div class="mdl-layout-spacer mdl-cell--hide-desktop mdl-cell--hide-tablet"></div>\n'
-    ..'<div><label for="pittariFlag" class="mdl-switch mdl-js-switch"><input id="pittariFlag" class="mdl-switch__input" type="checkbox" name="pittariFlag" value="1"'..(rs.pittariFlag and ' checked' or '')..'><span class="mdl-switch__label"></span></label></div></div>\n'
+    ..'<div><label for="pittariFlag" class="mdl-switch mdl-js-switch"><input id="pittariFlag" class="mdl-switch__input" name="pittariFlag"'..Checkbox(rs.pittariFlag)..'><span class="mdl-switch__label"></span></label></div></div>\n'
 
     ..'<div class="mdl-cell mdl-cell--12-col mdl-grid mdl-grid--no-spacing">\n<div class="mdl-cell mdl-cell--3-col mdl-cell--2-col-tablet">録画マージン</div>\n'
-    ..'<div class="mdl-cell mdl-cell--6-col mdl-cell--9-col-desktop mdl-grid mdl-grid--no-spacing">\n<div><label for="usedef" class="mdl-checkbox mdl-js-checkbox"><input id="usedef" class="mdl-checkbox__input" type="checkbox" name="useDefMarginFlag" value="1"'..(rs.startMargin and '' or ' checked')..'><span class="mdl-checkbox__label">デフォルト設定で使用</span></label></div>\n'
+    ..'<div class="mdl-cell mdl-cell--6-col mdl-cell--9-col-desktop mdl-grid mdl-grid--no-spacing">\n<div><label for="usedef" class="mdl-checkbox mdl-js-checkbox"><input id="usedef" class="mdl-checkbox__input" name="useDefMarginFlag"'..Checkbox(not rs.startMargin)..'><span class="mdl-checkbox__label">デフォルト設定で使用</span></label></div>\n'
     ..'<div class="number mdl-cell mdl-cell--12-col mdl-grid mdl-grid--no-spacing'..(rs.startMargin and '' or ' is-disabled')..'">\n'
     ..'<div class="textfield-container mdl-cell--4-col-tablet mdl-cell--4-col-desktop">\n<div class="text-right mdl-textfield mdl-js-textfield mdl-textfield--floating-label"><input class="recmargin mdl-textfield__input" type="number" name="startMargin" value="'..(rs.startMargin or rsdef and rsdef.startMargin or 0)..'"'..(rs.startMargin and '' or ' disabled')..' id="startMargin"><label class="mdl-textfield__label" for="startMargin">開始</label><span class="mdl-textfield__error">Input is not a number!</span></div><span>秒前</span></div>\n'
     ..'<div class="mdl-layout-spacer mdl-cell--hide-desktop mdl-cell--hide-tablet"></div>\n'
@@ -334,10 +343,10 @@ function RecSettingTemplate(rs)
     ..'</div></div></div>\n'
 
     ..'<div class="mdl-cell mdl-cell--12-col mdl-grid mdl-grid--no-spacing">\n<div class="mdl-cell mdl-cell--3-col mdl-cell--2-col-tablet">指定サービス対象データ</div>\n'
-    ..'<div class="mdl-cell mdl-cell--6-col mdl-cell--9-col-desktop mdl-grid mdl-grid--no-spacing">\n<div><label for="smode" class="mdl-checkbox mdl-js-checkbox"><input id="smode" class="mdl-checkbox__input" type="checkbox" name="serviceMode" value="1"'..(rs.serviceMode%2==0 and ' checked' or '')..'><span class="mdl-checkbox__label">デフォルト設定で使用</span></label></div>\n'
+    ..'<div class="mdl-cell mdl-cell--6-col mdl-cell--9-col-desktop mdl-grid mdl-grid--no-spacing">\n<div><label for="smode" class="mdl-checkbox mdl-js-checkbox"><input id="smode" class="mdl-checkbox__input" name="serviceMode"'..Checkbox(rs.serviceMode%2==0)..'><span class="mdl-checkbox__label">デフォルト設定で使用</span></label></div>\n'
     ..'<div class="mdl-cell mdl-cell--12-col mdl-grid mdl-grid--no-spacing">\n'
-    ..'<div><label for="mode1" class="mdl-checkbox mdl-js-checkbox"><input id="mode1" class="smode mdl-checkbox__input" type="checkbox" name="serviceMode_1" value="1"'..(math.floor(rs.serviceMode%2~=0 and rs.serviceMode/16 or rsdef and rsdef.serviceMode/16 or 0)%2~=0 and ' checked' or '')..(rs.serviceMode%2==0 and ' disabled' or '')..'><span class="mdl-checkbox__label">字幕データを含める</span></label></div>\n<div class="mdl-layout-spacer"></div>\n'
-    ..'<div><label for="mode2" class="mdl-checkbox mdl-js-checkbox"><input id="mode2" class="smode mdl-checkbox__input" type="checkbox" name="serviceMode_2" value="1"'..(math.floor(rs.serviceMode%2~=0 and rs.serviceMode/32 or rsdef and rsdef.serviceMode/32 or 0)%2~=0 and ' checked' or '')..(rs.serviceMode%2==0 and ' disabled' or '')..'><span class="mdl-checkbox__label">データカルーセルを含める</span></label></div>\n<div class="mdl-layout-spacer"></div>\n'
+    ..'<div><label for="mode1" class="mdl-checkbox mdl-js-checkbox"><input id="mode1" class="smode mdl-checkbox__input" name="serviceMode_1"'..Checkbox(math.floor(rs.serviceMode%2~=0 and rs.serviceMode/16 or rsdef and rsdef.serviceMode/16 or 0)%2~=0)..(rs.serviceMode%2==0 and ' disabled' or '')..'><span class="mdl-checkbox__label">字幕データを含める</span></label></div>\n<div class="mdl-layout-spacer"></div>\n'
+    ..'<div><label for="mode2" class="mdl-checkbox mdl-js-checkbox"><input id="mode2" class="smode mdl-checkbox__input" name="serviceMode_2"'..Checkbox(math.floor(rs.serviceMode%2~=0 and rs.serviceMode/32 or rsdef and rsdef.serviceMode/32 or 0)%2~=0)..(rs.serviceMode%2==0 and ' disabled' or '')..'><span class="mdl-checkbox__label">データカルーセルを含める</span></label></div>\n<div class="mdl-layout-spacer"></div>\n'
     ..'</div></div></div>\n'
 
     ..'<div class="mdl-cell mdl-cell--12-col mdl-grid mdl-grid--no-spacing">\n<div class="mdl-cell mdl-cell--3-col mdl-cell--2-col-tablet">ファイル出力'
@@ -355,13 +364,13 @@ function RecSettingTemplate(rs)
         ..'<div class="mdl-cell mdl-cell--12-col mdl-grid mdl-grid--no-spacing">\n<div class="mdl-cell mdl-cell--middle">出力PlugIn</div>\n'
         ..'<div class="pulldown mdl-cell mdl-grid mdl-grid--no-spacing"><select name="writePlugIn">\n'
       for j,w in ipairs(EnumPlugInFileName('Write')) do
-        s=s..'<option value="'..w..'"'..(IsEqualPath(v.writePlugIn,w) and ' selected' or '')..'>'..w..'\n'
+        s=s..'<option value="'..w..'"'..Selected(IsEqualPath(v.writePlugIn,w))..'>'..w..'\n'
       end
       s=s..'</select></div></div>\n'
         ..'<div class="mdl-cell mdl-cell--12-col mdl-grid mdl-grid--no-spacing">\n<div class="mdl-cell mdl-cell--middle">ファイル名PlugIn</div>\n'
-        ..'<div class="pulldown mdl-cell mdl-grid mdl-grid--no-spacing"><select name="recNamePlugIn">\n<option value=""'..((recNameDll or v.recNamePlugIn)=='' and ' selected' or '')..'>なし\n'
+        ..'<div class="pulldown mdl-cell mdl-grid mdl-grid--no-spacing"><select name="recNamePlugIn">\n<option value=""'..Selected((recNameDll or v.recNamePlugIn)=='')..'>なし\n'
       for j,w in ipairs(EnumPlugInFileName('RecName')) do
-        s=s..'<option value="'..w..'"'..(IsEqualPath((recNameDll or v.recNamePlugIn),w) and ' selected' or '')..'>'..w..'\n'
+        s=s..'<option value="'..w..'"'..Selected(IsEqualPath((recNameDll or v.recNamePlugIn),w))..'>'..w..'\n'
       end
       s=s..'</select></div></div>\n'
         ..'<div class="mdl-cell mdl-cell--12-col mdl-grid mdl-grid--no-spacing">\n<div class="mdl-cell mdl-cell--middle">オプション</div>\n'
@@ -376,7 +385,7 @@ function RecSettingTemplate(rs)
     ..'</div>'
 
     ..'<div class="mdl-cell mdl-cell--12-col mdl-grid mdl-grid--no-spacing"><div class="mdl-cell mdl-cell--3-col mdl-cell--2-col-tablet mdl-cell--middle">部分受信サービス</div>\n'
-    ..'<div class="mdl-cell--middle"><label for="partial" class="mdl-checkbox mdl-js-checkbox"><input id="partial" class="mdl-checkbox__input" type="checkbox" name="partialRecFlag" value="1"'..(rs.partialRecFlag~=0 and ' checked' or '')..'><span class="mdl-checkbox__label">別ファイルに同時出力する</span></label></div></div>\n'
+    ..'<div class="mdl-cell--middle"><label for="partial" class="mdl-checkbox mdl-js-checkbox"><input id="partial" class="mdl-checkbox__input" name="partialRecFlag"'..Checkbox(rs.partialRecFlag~=0)..'><span class="mdl-checkbox__label">別ファイルに同時出力する</span></label></div></div>\n'
 
     ..'<div id="partialpreset" class="mdl-cell mdl-cell--12-col mdl-grid mdl-grid--no-spacing"'..(rs.partialRecFlag==0 and ' style="display: none;"' or '')..'>\n'
 
@@ -390,13 +399,13 @@ function RecSettingTemplate(rs)
         ..'<div class="mdl-cell mdl-cell--12-col mdl-grid mdl-grid--no-spacing">\n<div class="mdl-cell mdl-cell--middle">出力PlugIn</div>\n'
         ..'<div class="pulldown mdl-cell mdl-grid mdl-grid--no-spacing"><select name="partialwritePlugIn">\n'
       for j,w in ipairs(EnumPlugInFileName('Write')) do
-        s=s..'<option value="'..w..'"'..(IsEqualPath(v.writePlugIn,w) and ' selected' or '')..'>'..w..'\n'
+        s=s..'<option value="'..w..'"'..Selected(IsEqualPath(v.writePlugIn,w))..'>'..w..'\n'
       end
       s=s..'</select></div></div>\n'
         ..'<div class="mdl-cell mdl-cell--12-col mdl-grid mdl-grid--no-spacing">\n<div class="mdl-cell mdl-cell--middle">ファイル名PlugIn</div>\n'
-        ..'<div class="pulldown mdl-cell mdl-grid mdl-grid--no-spacing"><select name="partialrecNamePlugIn">\n<option value=""'..((recNameDll or v.recNamePlugIn)=='' and ' selected' or '')..'>なし\n'
+        ..'<div class="pulldown mdl-cell mdl-grid mdl-grid--no-spacing"><select name="partialrecNamePlugIn">\n<option value=""'..Selected((recNameDll or v.recNamePlugIn)=='')..'>なし\n'
       for j,w in ipairs(EnumPlugInFileName('RecName')) do
-        s=s..'<option value="'..w..'"'..(IsEqualPath((recNameDll or v.recNamePlugIn),w) and ' selected' or '')..'>'..w..'\n'
+        s=s..'<option value="'..w..'"'..Selected(IsEqualPath((recNameDll or v.recNamePlugIn),w))..'>'..w..'\n'
       end
       s=s..'</select></div></div>\n'
         ..'<div class="mdl-cell mdl-cell--12-col mdl-grid mdl-grid--no-spacing">\n<div class="mdl-cell mdl-cell--middle">オプション</div>\n'
@@ -418,34 +427,34 @@ function RecSettingTemplate(rs)
   s=s..'</select>\n'
 
     ..'<div class="mdl-cell mdl-cell--12-col mdl-grid mdl-grid--no-spacing">\n<div class="mdl-cell mdl-cell--3-col mdl-cell--2-col-tablet mdl-cell--middle">連続録画動作</div>\n'
-    ..'<div class="mdl-cell--middle"><label for="continue" class="mdl-checkbox mdl-js-checkbox"><input id="continue" class="mdl-checkbox__input" type="checkbox" name="continueRecFlag" value="1"'..(rs.continueRecFlag and ' checked' or '')..'><span class="mdl-checkbox__label">後ろの予約を同一ファイルで出力する</span></label></div></div>\n'
+    ..'<div class="mdl-cell--middle"><label for="continue" class="mdl-checkbox mdl-js-checkbox"><input id="continue" class="mdl-checkbox__input" name="continueRecFlag"'..Checkbox(rs.continueRecFlag)..'><span class="mdl-checkbox__label">後ろの予約を同一ファイルで出力する</span></label></div></div>\n'
 
     ..'<div class="mdl-cell mdl-cell--12-col mdl-grid mdl-grid--no-spacing">\n<div class="mdl-cell mdl-cell--3-col mdl-cell--2-col-tablet mdl-cell--middle">使用チューナー強制指定</div>\n'
-    ..'<div class="pulldown mdl-cell mdl-cell--6-col mdl-cell--9-col-desktop mdl-grid mdl-grid--no-spacing"><select name="tunerID">\n<option value="0"'..(rs.tunerID==0 and ' selected' or '')..'>自動\n'
+    ..'<div class="pulldown mdl-cell mdl-cell--6-col mdl-cell--9-col-desktop mdl-grid mdl-grid--no-spacing"><select name="tunerID">\n<option value="0"'..Selected(rs.tunerID==0)..'>自動\n'
   local a=edcb.GetTunerReserveAll()
   for i=1,#a-1 do
-    s=s..'<option value="'..a[i].tunerID..'"'..(a[i].tunerID==rs.tunerID and ' selected' or '')..string.format('>ID:%08X(', a[i].tunerID)..a[i].tunerName..')\n'
+    s=s..'<option value="'..a[i].tunerID..'"'..Selected(a[i].tunerID==rs.tunerID)..string.format('>ID:%08X(', a[i].tunerID)..a[i].tunerName..')\n'
   end
   s=s..'</select></div></div>\n'
 
     ..'<div class="mdl-cell mdl-cell--12-col mdl-grid mdl-grid--no-spacing">\n<div class="mdl-cell mdl-cell--3-col mdl-cell--2-col-tablet">録画後動作</div>\n'
     ..'<div class="mdl-cell mdl-cell--6-col mdl-cell--9-col-desktop mdl-grid mdl-grid--no-spacing"><div class="pulldown mdl-cell mdl-cell--12-col"><select name="suspendMode">\n'
-    ..'<option value="0"'..(rs.suspendMode==0 and ' selected' or '')..'>デフォルト（'..(rsdef and ({'スタンバイ','休止','シャットダウン','何もしない'})[rsdef.suspendMode] or '')..'）'
-    ..'<option value="1"'..(rs.suspendMode==1 and ' selected' or '')..'>スタンバイ\n'
-    ..'<option value="2"'..(rs.suspendMode==2 and ' selected' or '')..'>休止\n'
-    ..'<option value="3"'..(rs.suspendMode==3 and ' selected' or '')..'>シャットダウン\n'
-    ..'<option value="4"'..(rs.suspendMode==4 and ' selected' or '')..'>何もしない\n</select></div>\n'
-    ..'<div><label for="reboot" class="mdl-checkbox mdl-js-checkbox"><input id="reboot" class="mdl-checkbox__input" type="checkbox" name="rebootFlag" value="1"'..((rs.suspendMode==0 and rsdef and rsdef.rebootFlag or rs.suspendMode~=0 and rs.rebootFlag) and ' checked' or '')..(rs.suspendMode==0 and ' disabled' or '')..'><span class="mdl-checkbox__label">復帰後再起動する</span></label></div></div></div>\n'
+    ..'<option value="0"'..Selected(rs.suspendMode==0)..'>デフォルト（'..(rsdef and ({'スタンバイ','休止','シャットダウン','何もしない'})[rsdef.suspendMode] or '')..'）'
+    ..'<option value="1"'..Selected(rs.suspendMode==1)..'>スタンバイ\n'
+    ..'<option value="2"'..Selected(rs.suspendMode==2)..'>休止\n'
+    ..'<option value="3"'..Selected(rs.suspendMode==3)..'>シャットダウン\n'
+    ..'<option value="4"'..Selected(rs.suspendMode==4)..'>何もしない\n</select></div>\n'
+    ..'<div><label for="reboot" class="mdl-checkbox mdl-js-checkbox"><input id="reboot" class="mdl-checkbox__input" name="rebootFlag"'..Checkbox((rs.suspendMode==0 and rsdef and rsdef.rebootFlag or rs.suspendMode~=0 and rs.rebootFlag))..(rs.suspendMode==0 and ' disabled' or '')..'><span class="mdl-checkbox__label">復帰後再起動する</span></label></div></div></div>\n'
 
   local batFilePath, batFileTag=rs.batFilePath:match('^([^*]*)%*?(.*)$')
   s=s..'<div class="mdl-cell mdl-cell--12-col mdl-grid mdl-grid--no-spacing">\n<div class="mdl-cell mdl-cell--3-col mdl-cell--2-col-tablet mdl-cell--middle">録画後実行bat</div>\n'
-    ..'<div class="pulldown mdl-cell mdl-cell--6-col mdl-cell--9-col-desktop mdl-grid mdl-grid--no-spacing"><select name="batFilePath">\n<option value=""'..(batFilePath=='' and ' selected' or '')..'>なし\n'
+    ..'<div class="pulldown mdl-cell mdl-cell--6-col mdl-cell--9-col-desktop mdl-grid mdl-grid--no-spacing"><select name="batFilePath">\n<option value=""'..Selected(batFilePath=='')..'>なし\n'
 
   local batDir=edcb.GetPrivateProfile('SET','batPath',PathAppend(CurrentDir,'bat'),INI)
   for j,w in ipairs(edcb.FindFile(PathAppend(batDir,'*'), 0) or {}) do
     if not w.isdir and (w.name:find('%.[Bb][Aa][Tt]$') or w.name:find('%.[Pp][Ss]1$') or w.name:find('%.[Ll][Uu][Aa]$')) or w.name:find('%.[Ss][Hh]$') then
       local batPath=PathAppend(batDir,w.name)
-      s=s..'<option value="'..batPath..'"'..(batFilePath:lower()==batPath:lower() and ' selected' or '')..'>'..w.name..'\n'
+      s=s..'<option value="'..batPath..'"'..Selected(batFilePath:lower()==batPath:lower())..'>'..w.name..'\n'
       batFilePath=batFilePath:lower()==batPath:lower() and '' or batFilePath
     end
   end
@@ -480,10 +489,10 @@ function SerchTemplate(si)
           ..'<div class="mdl-cell mdl-cell--12-col mdl-grid mdl-grid--no-spacing">\n<div class="mdl-cell mdl-cell--3-col mdl-cell--2-col-tablet">メモ</div>\n'
           ..'<div class="mdl-cell mdl-cell--6-col mdl-cell--9-col-desktop mdl-grid mdl-grid--no-spacing"><div class="mdl-cell--12-col mdl-textfield mdl-js-textfield"><input class="mdl-textfield__input" type="text" name="note" value="'..ParseNotKey(si.notKey).note..'" size="25" id="note"><label class="mdl-textfield__label" for="note"></label></div>\n')
     ..'<div class="mdl-cell mdl-cell--12-col mdl-grid mdl-grid--no-spacing">\n'
-    ..'<div><label for="reg" class="mdl-checkbox mdl-js-checkbox"><input id="reg" class="mdl-checkbox__input" type="checkbox" name="regExpFlag" value="1"'..(si.regExpFlag and ' checked' or '')..'><span class="mdl-checkbox__label">正規表現</span></label></div><div class="mdl-layout-spacer"></div>\n'
-    ..'<div><label for="aimai" class="mdl-checkbox mdl-js-checkbox"><input id="aimai" class="mdl-checkbox__input" type="checkbox" name="aimaiFlag" value="1"'..(si.aimaiFlag and ' checked' or '')..'><span class="mdl-checkbox__label">あいまい検索</span></label></div><div class="mdl-layout-spacer"></div>\n'
-    ..'<div><label for="titleOnly" class="mdl-checkbox mdl-js-checkbox"><input id="titleOnly" class="mdl-checkbox__input" type="checkbox" name="titleOnlyFlag" value="1"'..(si.titleOnlyFlag and ' checked' or '')..'><span class="mdl-checkbox__label">番組名のみ</span></label></div><div class="mdl-layout-spacer"></div>\n'
-    ..'<div><label for="caseFlag" class="mdl-checkbox mdl-js-checkbox"><input id="caseFlag" class="mdl-checkbox__input" type="checkbox" name="caseFlag" value="1"'..(ParseAndKey(si.andKey).caseFlag and ' checked' or '')..'><span class="mdl-checkbox__label">大小文字区別</span></label></div><div class="mdl-layout-spacer"></div>\n'
+    ..'<div><label for="reg" class="mdl-checkbox mdl-js-checkbox"><input id="reg" class="mdl-checkbox__input" name="regExpFlag"'..Checkbox(si.regExpFlag)..'><span class="mdl-checkbox__label">正規表現</span></label></div><div class="mdl-layout-spacer"></div>\n'
+    ..'<div><label for="aimai" class="mdl-checkbox mdl-js-checkbox"><input id="aimai" class="mdl-checkbox__input" name="aimaiFlag"'..Checkbox(si.aimaiFlag)..'><span class="mdl-checkbox__label">あいまい検索</span></label></div><div class="mdl-layout-spacer"></div>\n'
+    ..'<div><label for="titleOnly" class="mdl-checkbox mdl-js-checkbox"><input id="titleOnly" class="mdl-checkbox__input" name="titleOnlyFlag"'..Checkbox(si.titleOnlyFlag)..'><span class="mdl-checkbox__label">番組名のみ</span></label></div><div class="mdl-layout-spacer"></div>\n'
+    ..'<div><label for="caseFlag" class="mdl-checkbox mdl-js-checkbox"><input id="caseFlag" class="mdl-checkbox__input" name="caseFlag"'..Checkbox(ParseAndKey(si.andKey).caseFlag)..'><span class="mdl-checkbox__label">大小文字区別</span></label></div><div class="mdl-layout-spacer"></div>\n'
     ..'</div></div></div>\n'
 
     ..'<div class="mdl-cell mdl-cell--12-col mdl-grid mdl-grid--no-spacing">\n<div class="mdl-cell mdl-cell--3-col mdl-cell--2-col-tablet">'..(si.search and '対象ジャンル' or 'ジャンル絞り込み')..'</div>\n'
@@ -497,7 +506,7 @@ function SerchTemplate(si)
   end
   s=s..'</select></div>\n'
    ..'<div><button class="g_celar'..(si.search and ' advanced' or '')..' mdl-button mdl-js-button mdl-button--raised mdl-button--colored" type="button">クリア</button></div></div>\n'
-   ..'<div class="has-button"><div class="multiple mdl-layout-spacer"><select id="contentList" name="contentList" multiple size="5">\n'
+   ..'<div class="has-button"><div class="multiple mdl-layout-spacer"><select id="contentList" name="contentList" multiple size="7">\n'
   for _i,i in ipairs({0,1,2,3,4,5,6,7,8,9,10,11,12,13,0x60,0x61,0x62,0x63,0x64,0x65,0x66,0x67,0x70,0x71,0x72,0x73,0x74,0x75,0x76,0x77,15,255}) do
     local nibble1=edcb.GetGenreName(i*256+255)
     if nibble1~='' then
@@ -526,14 +535,13 @@ function SerchTemplate(si)
   end
   s=s..'</select></div>\n'
     ..(si.search and '<div><button class="g_celar mdl-button mdl-js-button mdl-button--raised mdl-button--colored" type="button">クリア</button></div>' or '')..'</div>\n'
-    ..'<div class="mdl-grid mdl-grid--no-spacing"><div><label for="notcontet" class="mdl-checkbox mdl-js-checkbox"><input id="notcontet" class="mdl-checkbox__input" type="checkbox" name="notContetFlag" value="1"'..(si.notContetFlag and ' checked' or '')..'><span class="mdl-checkbox__label">NOT扱い</span></label></div><div class="mdl-layout-spacer"></div>\n'
-    ..'<div><label for="subGenre" class="mdl-checkbox mdl-js-checkbox"><input id="subGenre" class="mdl-checkbox__input" type="checkbox"'..((subGenreOption=='ALL' or (subGenreOption=='EPG' and not si.search)) and ' checked' or '')..'><span class="mdl-checkbox__label">サブジャンル表示</span></label></div><div class="mdl-layout-spacer"></div>\n'
-    ..'</div></div>\n'
-    ..'<input type="hidden" name="serviceList"></div>\n'
+    ..'<div class="mdl-grid mdl-grid--no-spacing"><div><label for="notcontet" class="mdl-checkbox mdl-js-checkbox"><input id="notcontet" class="mdl-checkbox__input" name="notContetFlag"'..Checkbox(si.notContetFlag)..'><span class="mdl-checkbox__label">NOT扱い</span></label></div><div class="mdl-layout-spacer"></div>\n'
+    ..'<div><label for="subGenre" class="mdl-checkbox mdl-js-checkbox"><input id="subGenre" class="mdl-checkbox__input"'..Checkbox((subGenreOption=='ALL' or (subGenreOption=='EPG' and not si.search)))..'><span class="mdl-checkbox__label">サブジャンル表示</span></label></div><div class="mdl-layout-spacer"></div>\n'
+    ..'</div></div>\n</div>\n'
 
   s=s..'<div class="mdl-cell mdl-cell--12-col mdl-grid mdl-grid--no-spacing">\n<div class="mdl-cell mdl-cell--3-col mdl-cell--2-col-tablet">'..(si.search and '対象サービス' or 'サービス絞り込み')..'</div>\n'
     ..'<div class="mdl-cell mdl-cell--6-col mdl-cell--9-col-desktop">\n'
-    ..'<div class="has-button"><div class="multiple mdl-layout-spacer"><select id="serviceList" name="serviceList" multiple size="5">'
+    ..'<div class="has-button"><div class="multiple mdl-layout-spacer"><select id="serviceList" name="serviceList" multiple size="7">'
 
   local NetworkList={}
   for i,v in ipairs(NetworkIndex()) do
@@ -541,7 +549,7 @@ function SerchTemplate(si)
   end
   for i,v in ipairs(SortServiceListInplace(SelectChDataList(edcb.GetChDataList()))) do
     NetworkList[NetworkIndex(v)]=true
-    s=s..'\n<option class="network'..NetworkIndex(v)..(not oneseg and NetworkIndex()[NetworkIndex(v)]=='ワンセグ' and ' hide' or '')..'" value="'..v.onid..'-'..v.tsid..'-'..v.sid..'"'
+    s=s..'\n<option class="network'..NetworkIndex(v)..(not oneseg and NetworkIndex()[NetworkIndex(v)]=='ワンセグ' and ' hidden' or '')..'" value="'..v.onid..'-'..v.tsid..'-'..v.sid..'"'
     for j,w in ipairs(si.serviceList) do
       if w.onid==v.onid and w.tsid==v.tsid and w.sid==v.sid then
         s=s..' selected'
@@ -559,7 +567,7 @@ function SerchTemplate(si)
     ..'<div class="mdl-cell--4-col-phone"><label for="image" class="mdl-checkbox mdl-js-checkbox"><input id="image" class="mdl-checkbox__input" type="checkbox" checked><span class="mdl-checkbox__label">映像のみ</span></label></div><div class="mdl-layout-spacer"></div>\n'
   for i,v in ipairs(NetworkList) do
     if v then
-      s=s..'<div><label class="mdl-checkbox mdl-js-checkbox" for="EXT'..i..'"><input id="EXT'..i..'" class="extraction mdl-checkbox__input" type="checkbox" value=".network'..i..'"'..(not oneseg and NetworkIndex()[i]=='ワンセグ' and '' or ' checked')..'><span class="mdl-checkbox__label">'..NetworkIndex()[i]..'</span></label></div><div class="mdl-layout-spacer"></div>\n'
+      s=s..'<div><label class="mdl-checkbox mdl-js-checkbox" for="EXT'..i..'"><input id="EXT'..i..'" class="extraction mdl-checkbox__input"'..Checkbox(oneseg or NetworkIndex()[i]~='ワンセグ','.network'..i)..'><span class="mdl-checkbox__label">'..NetworkIndex()[i]..'</span></label></div><div class="mdl-layout-spacer"></div>\n'
     end
   end
   s=s..'</div>\n'
@@ -608,18 +616,18 @@ function SerchTemplate(si)
     ..'</span></label></div>\n'
 
     ..'<div class="time">'
-    ..'<div class="mdl-textfield mdl-js-textfield"><input id="startTime" class="mdl-textfield__input" type="time" name="startTime" value="00:00"><label class="mdl-textfield__label" for="startTime"></label></div>'
-    ..'<div><span class="tilde">～</span><div class="mdl-textfield mdl-js-textfield"><input id="endTime" class="mdl-textfield__input" type="time" name="endTime" value="01:00"><label class="mdl-textfield__label" for="endTime"></label></div></div>'
+    ..'<div class="mdl-textfield mdl-js-textfield"><input id="startTime" class="mdl-textfield__input" type="time" value="00:00"><label class="mdl-textfield__label" for="startTime"></label></div>'
+    ..'<div><span class="tilde">～</span><div class="mdl-textfield mdl-js-textfield"><input id="endTime" class="mdl-textfield__input" type="time" value="01:00"><label class="mdl-textfield__label" for="endTime"></label></div></div>'
     ..'</div></div></div>\n'
 
-    ..'<div><label class="mdl-checkbox mdl-js-checkbox" for="notdate"><input id="notdate" class="mdl-checkbox__input" type="checkbox" name="notDateFlag" value="1"'..(si.notDateFlag and ' checked' or '')..'><span class="mdl-checkbox__label">NOT扱い</span></label></div>\n'
+    ..'<div><label class="mdl-checkbox mdl-js-checkbox" for="notdate"><input id="notdate" class="mdl-checkbox__input" name="notDateFlag"'..Checkbox(si.notDateFlag)..'><span class="mdl-checkbox__label">NOT扱い</span></label></div>\n'
     ..'</div><input type="hidden" name="dateList" value="'..dateListValue..'"></div>\n'
 
     ..'<div class="'..(si.search and 'advanced ' or '')..'mdl-cell mdl-cell--12-col mdl-grid mdl-grid--no-spacing">\n<div class="mdl-cell mdl-cell--3-col mdl-cell--2-col-tablet">スクランブル放送</div>\n'
     ..'<div class="pulldown mdl-cell mdl-cell--6-col mdl-cell--9-col-desktop mdl-grid mdl-grid--no-spacing"><select name="freeCAFlag">\n'
-    ..'<option value="0"'..(si.freeCAFlag==0 and ' selected' or '')..'>無料、有料番組を対象とする\n'
-    ..'<option value="1"'..(si.freeCAFlag==1 and ' selected' or '')..'>無料番組を対象とする\n'
-    ..'<option value="2"'..(si.freeCAFlag==2 and ' selected' or '')..'>有料番組を対象とする\n'
+    ..'<option value="0"'..Selected(si.freeCAFlag==0)..'>無料、有料番組を対象とする\n'
+    ..'<option value="1"'..Selected(si.freeCAFlag==1)..'>無料番組を対象とする\n'
+    ..'<option value="2"'..Selected(si.freeCAFlag==2)..'>有料番組を対象とする\n'
     ..'</select></div></div>\n'
     ..'<div class="'..(si.search and 'advanced ' or '')..'mdl-cell mdl-cell--12-col mdl-grid mdl-grid--no-spacing">\n<div class="mdl-cell mdl-cell--3-col mdl-cell--2-col-tablet mdl-cell--middle">番組長で絞り込み</div>\n'
     ..'<div class="number mdl-cell--6-col mdl-cell--9-col-desktop mdl-grid mdl-grid--no-spacing">\n'
@@ -635,8 +643,8 @@ function SerchTemplate(si)
       ..'<span class="mdl-tooltip" for="tt-days">0で無期限</span></div>\n'
   else
     s=s..'<div class="mdl-cell mdl-cell--12-col mdl-grid mdl-grid--no-spacing">\n<div class="mdl-cell mdl-cell--3-col mdl-cell--2-col-tablet">無効対象</div>\n'
-      ..'<div><div><label for="chkRecEnd" class="mdl-checkbox mdl-js-checkbox"><input id="chkRecEnd" class="mdl-checkbox__input" type="checkbox" name="chkRecEnd" value="1"'..(si.chkRecEnd and ' checked' or '')..'><span class="mdl-checkbox__label">同一番組名の録画結果があれば無効で登録する</span></label></div>\n'
-      ..'<div><label class="mdl-checkbox mdl-js-checkbox" for="chkRecNoService"><input id="chkRecNoService" class="mdl-checkbox__input" type="checkbox" name="chkRecNoService" value="1"'..(si.chkRecNoService and ' checked' or '')..'><span class="mdl-checkbox__label">全てのサービスで無効</span></label></div>\n'
+      ..'<div><div><label for="chkRecEnd" class="mdl-checkbox mdl-js-checkbox"><input id="chkRecEnd" class="mdl-checkbox__input" name="chkRecEnd"'..Checkbox(si.chkRecEnd)..'><span class="mdl-checkbox__label">同一番組名の録画結果があれば無効で登録する</span></label></div>\n'
+      ..'<div><label class="mdl-checkbox mdl-js-checkbox" for="chkRecNoService"><input id="chkRecNoService" class="mdl-checkbox__input" name="chkRecNoService"'..Checkbox(si.chkRecNoService)..'><span class="mdl-checkbox__label">全てのサービスで無効</span></label></div>\n'
       ..'<div class="number textfield-container">確認対象期間<div class="text-right mdl-textfield mdl-js-textfield"><input id="chkRecDay" class="mdl-textfield__input" type="number" name="chkRecDay" value="'..si.chkRecDay..'" min="0"><label class="mdl-textfield__label" for="chkRecDay"></label><span class="mdl-textfield__error">Input is not a number!</span></div>日前まで</div>\n'
       ..'</div></div>\n'
   end
@@ -644,30 +652,59 @@ function SerchTemplate(si)
   return s
 end
 
-function SidePanelTemplate(reserve)
+function ManuAddTemplate(aa)
+  local endTime=aa and (aa.startTime+aa.durationSecond)%(24*3600)
+  local s='<input type="hidden" name="addchg" value="1">'
+    ..'<div class="mdl-cell mdl-cell--12-col mdl-grid mdl-grid--no-spacing">\n<div class="mdl-cell mdl-cell--3-col mdl-cell--2-col-tablet mdl-cell--middle">曜日</div>\n'
+    ..'<div class="mdl-cell mdl-cell--6-col mdl-cell--9-col-desktop mdl-grid mdl-grid--no-spacing">\n'
+  for i,v in ipairs({'日','月','火','水','木','金','土'}) do
+    s=s..'<label style="width:auto;margin-right: 12px;" class="mdl-checkbox mdl-js-checkbox" for="checkDayOfWeek'..i..'"><input name="checkDayOfWeek'..i..'" id="checkDayOfWeek'..i..'" class="mdl-checkbox__input"'..Checkbox(aa and bit32.btest(aa.dayOfWeekFlag,2^(i-1)))..'><span class="mdl-checkbox__label">'..v..'</span></label>\n'
+  end
+  s=s..'</div></div>\n'
+
+    ..'<div class="mdl-cell mdl-cell--12-col mdl-grid mdl-grid--no-spacing">\n<div class="mdl-cell mdl-cell--3-col mdl-cell--2-col-tablet mdl-cell--middle">時間</div>\n'
+    ..'<div><div class="mdl-textfield mdl-js-textfield" style="width:auto"><input id="startTime-from" class="mdl-textfield__input" type="time" step="1" name="startTime" value='..(aa and ('%02d:%02d:%02d'):format(math.floor(aa.startTime/3600),(math.floor(aa.startTime/60)%60),(aa.startTime%60)) or '00:00:00')..'><label class="mdl-textfield__label" for="startTime-from"></label></div>'
+    ..'<span class="tilde">～</span><div class="mdl-textfield mdl-js-textfield" style="width:auto"><input id="endTime-from" class="mdl-textfield__input" type="time" step="1" name="endTime" value="'..(aa and ('%02d:%02d:%02d'):format(math.floor(endTime/3600),(math.floor(endTime/60)%60),(endTime%60)) or '00:00:00')..'"><label class="mdl-textfield__label" for="endTime-from"></label></div></div>'
+    ..'</div>\n'
+
+    ..'<div class="mdl-cell mdl-cell--12-col mdl-grid mdl-grid--no-spacing">\n<div class="mdl-cell mdl-cell--3-col mdl-cell--2-col-tablet mdl-cell--middle">番組名</div>\n'
+    ..'<div class="mdl-cell mdl-cell--6-col mdl-cell--9-col-desktop mdl-textfield mdl-js-textfield"><input class="title mdl-textfield__input" type="text" name="title" value="'..(aa and aa.title or '')..'" size="25" id="title-from"><label class="mdl-textfield__label" for="title-from"></label></div></div>\n'
+
+    ..'<div class="mdl-cell mdl-cell--12-col mdl-grid mdl-grid--no-spacing">\n<div class="mdl-cell mdl-cell--3-col mdl-cell--2-col-tablet">サービス</div>\n'
+    ..'<div class="pulldown mdl-cell mdl-cell--6-col mdl-cell--9-col-desktop mdl-grid mdl-grid--no-spacing">\n'
+    ..'<div class="mdl-layout-spacer"><select id="serviceID" name="serviceID">\n'
+  local found=false
+  for i,v in ipairs(SortServiceListInplace(SelectChDataList(edcb.GetChDataList()))) do
+    s=s..'<option value="'..v.onid..'-'..v.tsid..'-'..v.sid..'"'
+    if aa and v.onid==aa.onid and v.tsid==aa.tsid and v.sid==aa.sid then
+      found=true
+      s=s..' selected'
+    end
+    s=s..'>('..NetworkIndex()[NetworkIndex(v)]..') '..v.serviceName..'\n'
+  end
+  if not found and aa and aa.onid then
+    s=s..'<option value="'..aa.onid..'-'..aa.tsid..'-'..aa.sid..'" selected'
+      ..'>('..NetworkIndex()[NetworkIndex(v)]..') '..aa.stationName..'\n'
+  end
+  return s..'</select></div>\n</div></div>\n'
+end
+
+function searchLinksScriptTemplate()
+  local esc=edcb.htmlEscape
+  edcb.htmlEscape=0
+  links=edcb.GetPrivateProfile('SET','links','',INI)
+  edcb.htmlEscape=esc
+  return 'const Links={calendar:{details:\''..edcb.GetPrivateProfile('CALENDAR','details','%text_char%',INI)
+    ..'\',op:\'&authuser='..edcb.GetPrivateProfile('CALENDAR','authuser','0',INI)
+    ..'&src='..edcb.GetPrivateProfile('CALENDAR','src','',INI)..'\'}'
+    ..(links~='' and ',links:['..links..']' or '')..'};'
+end
+
+function SidePanelTemplate(list)
   if not SIDE_PANEL then return '' end
-  local s=[=[
-<div id="sidePanel" class="sidePanel mdl-layout__drawer mdl-tabs mdl-js-tabs">
-<div class="sidePanel_headder mdl-color--primary"><i class="material-icons">info</i><span class="sidePanel_title">番組情報</span><div class="mdl-layout-spacer"></div><a id="link_epginfo" class="mdl-button mdl-js-button mdl-button--icon"><i class="material-icons">open_in_new</i></a><button class="close_info mdl-button mdl-js-button mdl-button--icon"><i class="material-icons">close</i></button></div>
-<div class="sidePanel-content">
-<div id="summary"><h4 class="mdl-typography--title"><span id="title"></span><span class="mdl-typography--subhead mdl-grid mdl-grid--no-spacing"><span id="info_date" class="date"></span><span id="service" class="service"></span></span><span id="links"></span></h4><p></p></div>
-<div class="tab-container"><div class="mdl-tabs__tab-bar"><a href="#detail" class="mdl-tabs__tab is-active">番組詳細</a><a href="#recset" class="mdl-tabs__tab">録画設定</a></div>
-<section class="panel-swipe mdl-tabs__panel is-active" id="detail">
-<div id="ext" class="mdl-typography--body-1"></div>
-<ul>
-<li>ジャンル<ul id="genreInfo"></ul></li>
-<li>映像<ul id="videoInfo"></ul></li>
-<li>音声<ul id="audioInfo"></ul></li>
-<li>その他<ul id="otherInfo"></ul></li>
-</ul>
-</section>
-<section class="panel-swipe mdl-tabs__panel" id="recset">
-<form id="set" method="POST" data-action="]=]..(reserve and 'reserve' or 'add')..[=[">
-<div class="form mdl-grid mdl-grid--no-spacing">
-<div class="mdl-cell mdl-cell--12-col mdl-grid mdl-grid--no-spacing"><div class="mdl-cell mdl-cell--3-col mdl-cell--2-col-tablet mdl-cell--middle">プリセット</div>
-<div class="pulldown mdl-cell mdl-cell--6-col mdl-cell--9-col-desktop mdl-grid mdl-grid--no-spacing"><select name="presetID">
-]=]
+  hasSIDE_PANEL=true
   local rs
+  local s=''
   for i,v in ipairs(edcb.EnumRecPresetInfo()) do
     if v.id==0 then
       rs=v.recSetting
@@ -676,29 +713,80 @@ function SidePanelTemplate(reserve)
       s=s..'<option value="'..v.id..'">'..v.name..'\n'
     end
   end
-  return s..'<option id="reserved" value="65535">予約時\n</select></div></div>\n'
-
-    ..'<input type="hidden" name="onid">\n'
-    ..'<input type="hidden" name="tsid">\n'
-    ..'<input type="hidden" name="sid">\n'
-    ..'<input type="hidden" name="eid">\n'
-    ..'<input type="hidden" id="action">\n'
-    ..'<input type="hidden" name="ctok" value="'..CsrfToken('setreserve')..'">\n'
-    ..RecSettingTemplate(rs)..'</div></div></form>\n'
-    ..'</section>\n</div>\n'
-
-    ..'<div class="mdl-card__actions">\n'
-    ..'<button id="toprogres" class="show_dialog mdl-button mdl-js-button mdl-button--primary" data-dialog="#dialog_progres">プログラム予約化</button>\n'
-    ..'<div class="mdl-layout-spacer"></div>\n'
-    ..'<form id="del" method="POST" data-action="del"><input type="hidden" name="del" value="1"><input type="hidden" name="ctok" value="'..CsrfToken('setreserve')..'"></form>\n<button id="delreseved" class="submit mdl-button mdl-js-button mdl-button--primary" data-form="#del">削除</button>\n'
-    ..'<button id="reserve" class="submit mdl-button mdl-js-button mdl-button--primary" data-form="#set">予約追加</button>\n'
-    ..'</div>\n'
-
-    ..'</div>\n<div class="close_info mdl-layout__obfuscator mdl-layout--small-screen-only"></div>\n'
+  
+  return [=[
+<div id="sidePanel" class="sidePanel mdl-layout__drawer mdl-tabs mdl-js-tabs">
+<div class="sidePanel_headder mdl-color--primary"><i class="material-icons">info</i><span class="sidePanel_title">番組情報</span><div class="mdl-layout-spacer"></div><a id="link_epginfo" class="mdl-button mdl-js-button mdl-button--icon"><i class="material-icons">open_in_new</i></a><button class="close_info mdl-button mdl-js-button mdl-button--icon"><i class="material-icons">close</i></button></div>
+<div class="sidePanel-content">
+<div id="summary" class="hide-autoaddepg hide-autoaddmanual"><h4 class="mdl-typography--title"><span id="title"></span><span class="mdl-typography--subhead mdl-grid mdl-grid--no-spacing"><span id="info_date" class="date"></span><span id="service" class="service"></span></span><span id="links"></span></h4><p></p></div>
+<form class="tab-container" id="set" method="POST" data-action="]=]..(list and 'list' or 'epg')..[=[">
+<div class="mdl-tabs__tab-bar"><a href="#detail" class="mdl-tabs__tab is-active">番組詳細</a>]=]..(list and '<a href="#search_" class="mdl-tabs__tab">検索条件</a><a href="#manuadd" class="mdl-tabs__tab">予約条件</a><a href="#error" class="mdl-tabs__tab">エラーログ</a>' or '')..[=[<a href="#recset" class="mdl-tabs__tab">録画設定</a></div>
+<section class="panel-swipe mdl-tabs__panel is-active" id="detail">
+<input type="hidden" name="ctok" value="]=]..CsrfToken('setreserve')..[=[">
+<input type="hidden" name="onid">
+<input type="hidden" name="tsid">
+<input type="hidden" name="sid">
+<input type="hidden" name="eid">
+<input type="hidden" id="action">
+<div id="ext" class="mdl-typography--body-1"></div>
+<ul>]=]..(list and [=[
+<li class="show-recinfo">結果:<span id="comment"></li>
+<li class="show-recinfo"><div>録画ファイルパス:<div id="path"></div></div></li>
+<li class="show-recinfo">ドロップ:<span id="drops"></li>
+<li class="show-recinfo">スクランブル:<span id="scrambles"></li>]=] or '')..[=[
+<li>ジャンル<ul id="genreInfo"></ul></li>
+<li>映像<ul id="videoInfo"></ul></li>
+<li>音声<ul id="audioInfo"></ul></li>
+<li>その他<ul id="otherInfo"></ul></li>
+</ul>
+</section>]=]..(list and [=[
+<section class="panel-swipe mdl-tabs__panel" id="search_">
+<div class="form mdl-grid mdl-grid--no-spacing">
+<input type="hidden" name="ctok" value="]=]..CsrfToken('setautoadd')..[=[">
+<input type="hidden" name="addchg">
+<div class="mdl-cell mdl-cell--12-col mdl-grid mdl-grid--no-spacing"><div class="mdl-cell mdl-cell--2-col mdl-cell--3-col-desktop mdl-cell--middle">自動予約無効</div>
+<div class="mdl-layout-spacer mdl-cell--hide-desktop mdl-cell--hide-tablet"></div>
+<div><label for="disable" class="mdl-switch mdl-js-switch"><input id="disable" class="mdl-switch__input" type="checkbox" name="disableFlag"></label><span class="mdl-switch__label"></span></div></div>
+]=]..SerchTemplate(GetSearchKeyKeyword(mg.request_info.query_string))..[=[
+</div></section>
+<section class="panel-swipe mdl-tabs__panel" id="manuadd">
+<div class="form mdl-grid mdl-grid--no-spacing">
+<input type="hidden" name="ctok" value="]=]..CsrfToken('setmanuadd')..[=[">
+]=]..ManuAddTemplate()..[=[
+</div></section>
+<section class="panel-swipe mdl-tabs__panel" id="error"><div><pre></pre></div></section>]=] or '')..[=[
+<section class="panel-swipe mdl-tabs__panel" id="recset">
+<div class="form mdl-grid mdl-grid--no-spacing">
+<div class="mdl-cell mdl-cell--12-col mdl-grid mdl-grid--no-spacing"><div class="mdl-cell mdl-cell--3-col mdl-cell--2-col-tablet mdl-cell--middle">プリセット</div>
+<div class="pulldown mdl-cell mdl-cell--6-col mdl-cell--9-col-desktop mdl-grid mdl-grid--no-spacing"><select name="presetID">
+]=]..s..[=[
+<option id="reserved" value="65535">予約時
+</select></div></div>
+]=]..RecSettingTemplate(rs)..[=[
+</div></section>
+</form></div>
+<div class="mdl-card__actions hide-recinfo">
+<button id="toprogres" class="show_dialog mdl-button mdl-js-button mdl-button--primary show-reserve" data-dialog="#dialog_progres">プログラム予約化</button>
+<div class="mdl-layout-spacer"></div>
+<form id="del" method="POST" data-action="del"><input type="hidden" name="del" value="1">
+<input id="del-reserve" type="hidden" name="ctok" value="]=]..CsrfToken('setreserve')..(list and [=[">
+<input id="del-autoaddepg" type="hidden" name="ctok" value="]=]..CsrfToken('setautoadd')..[=[">
+<input id="del-autoaddmanual" type="hidden" name="ctok" value="]=]..CsrfToken('setmanuadd') or '')..[=[">
+</form>
+<button id="delreseved" class="submit mdl-button mdl-js-button mdl-button--primary" data-form="#del">削除</button>
+<button id="reserve" class="submit mdl-button mdl-js-button mdl-button--primary" data-form="#set">予約追加</button>
+</div>
+</div><div class="close_info mdl-layout__obfuscator mdl-layout--small-screen-only"></div>
+]=]..(list and '<style>.partially{background:'..edcb.GetPrivateProfile('BACKGROUND','partially','#FFFF00',INI)
+  ..';}.shortage{background:'..edcb.GetPrivateProfile('BACKGROUND','shortage','#FF5252',INI)
+  ..';}</style>\n'
+  ..'<script>const ctok=\''..CsrfToken('setreserve')..'\';' or '<script>')
+  ..searchLinksScriptTemplate()..'</script>\n'
 end
 
 --プレイヤー
 function PlayerTemplate(video, liveOrAudio)
+  local tslive = GetVarInt(mg.request_info.query_string,'tslive')==1
   local list = edcb.GetPrivateProfile('set','quality','',INI)
   local live = type(liveOrAudio)=='boolean' and liveOrAudio
   local audio = type(liveOrAudio)=='table' and liveOrAudio
@@ -724,7 +812,7 @@ function PlayerTemplate(video, liveOrAudio)
     <button id="key23" class="mdl-button mdl-js-button mdl-button--fab mdl-js-ripple-effect mdl-button--mini-fab" disabled></button>
     <button id="key24" class="mdl-button mdl-js-button mdl-button--fab mdl-js-ripple-effect mdl-button--mini-fab" disabled></button>
   </span>
-  <span class="num">
+  <span class="num hidden">
     <span>
       <button id="key6" class="mdl-button mdl-js-button mdl-button--fab mdl-js-ripple-effect mdl-button--mini-fab" disabled>1</button>
       <button id="key7" class="mdl-button mdl-js-button mdl-button--fab mdl-js-ripple-effect mdl-button--mini-fab" disabled>2</button>
@@ -756,7 +844,7 @@ function PlayerTemplate(video, liveOrAudio)
 <div id="playerUI" class="is-visible">
 <div id="titlebar" class="bar"></div>
 <div id="control" class="bar">
-<div id="seek-container">]=]..(live and '<div class="progress mdl-slider__container"><div id="seek" class="mdl-progress mdl-js-progress"></div></div>' or '<input class="mdl-slider mdl-js-slider" type="range" id="seek" min="0" max="100" value="0" step="0.00001">')..[=[</div>
+<div id="seek-container">]=]..(live and '<div class="progress mdl-slider__container"><div id="seek" class="mdl-progress mdl-js-progress"></div></div>' or '<script src="js/ts-live.lua?t=-misc.js"></script><span class="thumb-popup"><canvas id="vid-thumb" style="display: none;"></canvas></span><input class="mdl-slider mdl-js-slider" type="range" id="seek" min="0" max="100" value="0">')..[=[</div>
 <button id="stop" class="stop ctl-button mdl-button mdl-js-button mdl-button--icon"><i class="material-icons fill">stop</i></button><span id="ctl-button"><button id="playprev" class="ctl-button mdl-button mdl-js-button mdl-button--icon"><i class="material-icons fill">skip_previous</i></button><button id="play" class="ctl-button mdl-button mdl-js-button mdl-button--icon"><i class="material-icons fill">play_arrow</i></button><button id="playnext" class="ctl-button mdl-button mdl-js-button mdl-button--icon"><i class="material-icons fill">skip_next</i></button></span>
 <div id="volume-wrap"><button id="volume-icon" class="ctl-button mdl-button mdl-js-button mdl-button--icon fill"><i class="material-icons fill">volume_up</i></button><p id="volume-container" class="mdl-cell--hide-phone"><input class="mdl-slider mdl-js-slider" type="range" id="volume" min="0" max="1" value="0" step="0.01"></p></div>
 <div class="Time-wrap"><span class="currentTime videoTime">0:00</span><span class="mdl-cell--hide-phone"><span> / </span><span class="duration videoTime">0:00</span></span></div>
@@ -764,19 +852,19 @@ function PlayerTemplate(video, liveOrAudio)
 <p class="mdl-layout-spacer"></p>
 ]=]..(USE_DATACAST and '<button id="remote" class="ctl-button mdl-button mdl-js-button mdl-button--icon"><i class="material-icons fill">settings_remote</i></button>\n' or '')
   ..(ALLOW_HLS and '<button id="subtitles" class="ctl-button marker mdl-button mdl-js-button mdl-button--icon"><i class="material-icons fill">subtitles</i></button>\n' or '')
-  ..((live and USE_LIVEJK or not live and JKRDLOG_PATH) and '<button id="danmaku" class="'..(JKRDLOG_PATH and 'log ' or '')..'ctl-button marker mdl-button mdl-js-button mdl-button--icon"><i class="material-icons">sms</i></button>\n' or '')..[=[
+  ..((live and USE_LIVEJK or not live and JKRDLOG_PATH) and '<button id="danmaku" class="ctl-button marker mdl-button mdl-js-button mdl-button--icon"><i class="material-icons">sms</i></button>\n' or '')..[=[
 <button id="settings" class="ctl-button mdl-button mdl-js-button mdl-button--icon"><i class="material-icons fill">settings</i></button>
 <ul class="mdl-menu mdl-menu--top-right mdl-js-menu" for="settings">
 <li class="ext mdl-menu__item hidden" id="menu_autoplay"><label for="autoplay" class="mdl-layout-spacer">自動再生</label><span><label class="mdl-switch mdl-js-switch" for="autoplay"><input type="checkbox" id="autoplay" class="mdl-switch__input"></label></span></li>
 <li class="ext mdl-menu__item audio" id="audio" disabled><button class="audio" disabled><span class="mdl-layout-spacer">音声</span><i class="material-icons">navigate_next</i></button>
 <li class="ext mdl-menu__item quality" id="quality" disabled><button class="quality" disabled><span class="mdl-layout-spacer">画質</span><i class="material-icons">navigate_next</i></button></li>
-<li class="ext mdl-menu__item" id="rate"><button><span class="mdl-layout-spacer">速度</span><i class="material-icons">navigate_next</i></button></li>
+<li class="ext mdl-menu__item rate" id="rate"><button class="rate"><span class="mdl-layout-spacer">速度</span><i class="material-icons">navigate_next</i></button></li>
 </ul><ul class="mdl-menu mdl-menu--top-right mdl-js-menu" for="audio">
 ]=]
 
 if audio then
   for i,v in ipairs(audio) do
-    s=s..'<li class="ext mdl-menu__item"><input type="radio" id="audio'..i..'" name="audio" value="0"'..(i==1 and ' checked' or '')..'><label for="audio'..i..'" class="mdl-layout-spacer"><i class="material-icons">check</i></label><label for="audio'..i..'">'..(v.text_char=='' and ({'主音声','副音声'})[i] or v.text_char)..'</label></li>\n'
+    s=s..'<li class="ext mdl-menu__item"><input id="audio'..i..'" name="audio"'..Radiobtn(i==1,0)..'><label for="audio'..i..'" class="mdl-layout-spacer"><i class="material-icons">check</i></label><label for="audio'..i..'">'..(v.text_char=='' and ({'主音声','副音声'})[i] or v.text_char)..'</label></li>\n'
   end
 else
   s=s..'<li class="ext mdl-menu__item"><input type="radio" id="audio1" name="audio" value="0" checked><label for="audio1" class="mdl-layout-spacer"><i class="material-icons">check</i></label><label for="audio1">主音声</label></li>\n'
@@ -788,14 +876,19 @@ s=s..[=[
 <li class="ext mdl-menu__item" id="menu_cinema"><label for="cinema" class="mdl-layout-spacer">逆テレシネ</label><span><label class="mdl-switch mdl-js-switch" for="cinema"><input type="checkbox" id="cinema" class="mdl-switch__input" value="1"></label></span></li>
 ]=]
   for i,v in ipairs(XCODE_OPTIONS) do
-    if not ALLOW_HLS or not ALWAYS_USE_HLS or v.outputHls then
+    if v.tslive or not ALLOW_HLS or not ALWAYS_USE_HLS or v.outputHls then
       local id = 'q_'..mg.md5(v.name)
-      s=s..'<li class="ext mdl-menu__item"><input type="radio" id="'..id..'" name="quality" value="'..i..'"'..(i==1 and ' checked' or '')..'><label for="'..id..'" class="mdl-layout-spacer"><i class="material-icons">check</i></label><label for="'..id..'">'..EdcbHtmlEscape(v.name)..'</label></li>\n'
+      s=s..'<li class="ext mdl-menu__item'..(v.tslive and ' tslive' or '')..'"><input id="'..id..'" name="quality"'..Radiobtn(i==1,i)..(v.tslive and ' class="tslive"' or '')..'><label for="'..id..'" class="mdl-layout-spacer"><i class="material-icons">check</i></label><label for="'..id..'">'..EdcbHtmlEscape(v.name)..'</label></li>\n'
     end
   end
   s=s..'</ul><ul class="mdl-menu mdl-menu--top-right mdl-js-menu" for="rate">\n'
-  for i,v in pairs({0.25, 0.5, 0.75, 1, 1.25, 1.5, 2}) do
-    s=s..'<li class="ext mdl-menu__item"><input type="radio" id="rate'..i..'" name="rate" class="rate" value="'..v..'"'..(v==1 and ' checked' or '')..'><label for="rate'..i..'"><i class="material-icons">check</i></label><label for="rate'..i..'">'..(v==1 and '標準' or v)..'</label></li>\n'
+  local has1=false
+  for i,v in ipairs(XCODE_FAST_RATES) do
+    if not has1 and v==1 then
+      has1=true
+      i=0
+    end
+  s=s..'<li class="ext mdl-menu__item"><input id="rate'..i..'" name="rate" class="rate"'..Radiobtn(v==1,v)..' data-index='..i..'><label for="rate'..i..'"><i class="material-icons">check</i></label><label for="rate'..i..'">'..(v==1 and '標準' or v..(math.fmod(v,1)==0 and '.0' or ''))..'</label></li>\n'
   end
   return s..[=[
 </ul>
@@ -806,20 +899,26 @@ s=s..[=[
 <button id="fullscreen" class="hide-pip ctl-button mdl-button mdl-js-button mdl-button--icon"><i class="material-icons">fullscreen</i></button>
 </div>
 </div>
-<div class="arib-video-invisible-container"><div class="arib-video-container">]=]..video..[=[</div></div>
+<div class="arib-video-invisible-container" id="vid-cont"><div class="arib-video-container">
+<]=]..(tslive and 'canvas' or 'video')..' id="video" '..video..'></'..(tslive and 'canvas' or 'video')..[=[>
+</div></div>
 </div></div>
 ]=]
-  ..(USE_DATACAST and '<script src="js/web_bml_play_ts.js"></script>\n' or '')
+  ..(USE_DATACAST and '<script src="js/web_bml_play_ts.js'..Version('bml')..'"></script>\n' or '')
 
   ..((live and USE_LIVEJK or not live and JKRDLOG_PATH) and '<link rel="stylesheet" href="css/jikkyo.css">\n'
-    ..'<script>const ctokC=\''..CsrfToken('comment')..'\';function replaceTag(tag){'..JK_CUSTOM_REPLACE..'return tag;};const jk_comment_height='..JK_COMMENT_HEIGHT..';const jk_comment_durtion='..JK_COMMENT_DURATION..';</script>\n'
-    ..'<script src="js/danmaku.js"></script>\n' or '')
+    ..'<script>const ctokC=\''..CsrfToken('comment')..'\';function replaceTag(tag){'..JK_CUSTOM_REPLACE..'return tag;};const commentHeight='..JK_COMMENT_HEIGHT..';const commentDuration='..JK_COMMENT_DURATION..';</script>\n'
+    ..'<script src="js/danmaku.js'..Version('danmaku')..'"></script>\n' or '')
 
-  ..(ALLOW_HLS and '<script>const hls4=\''..(USE_MP4_HLS and '&hls4='..(USE_MP4_LLHLS and '2' or '1') or '')..'\';const aribb24UseSvg='..(ARIBB24_USE_SVG and 'true' or 'false')..';const aribb24Option={'..ARIBB24_JS_OPTION..'};\n</script>\n'
-    ..(ALWAYS_USE_HLS and '<script src="js/hls.min.js"></script>\n' or '')
-    ..'<script src="js/aribb24.js"></script>\n' or '')
+  ..(tslive and '<script src="js/aribb24.js'..Version('aribb24')..'"></script>\n'
+        ..'<script src="js/ts-live.lua?t=.js"></script>\n'
+        ..'<script>const ctok=\''..(CsrfToken(live and 'view' or 'xcode'))..'\';const aribb24UseSvg='..(ARIBB24_USE_SVG and 'true' or 'false')..';const aribb24Option={'..ARIBB24_JS_OPTION..'};</script>\n'
+      or (ALLOW_HLS and '<script>const hls4=\''..(USE_MP4_HLS and '&hls4='..(USE_MP4_LLHLS and '2' or '1') or '')..'\';const aribb24UseSvg='..(ARIBB24_USE_SVG and 'true' or 'false')..';const aribb24Option={'..ARIBB24_JS_OPTION..'};\n</script>\n'
+        ..(ALWAYS_USE_HLS and '<script src="js/hls.min.js'..Version('hls')..'"></script>\n' or '')
+        ..'<script src="js/aribb24.js'..Version('aribb24')..'"></script>\n' or '')
 
-  ..((ALLOW_HLS or live) and '<script>const ALLOW_HLS'..(ALLOW_HLS and '=true' or '')..';const ctok=\''..(live and CsrfToken('view') or CsrfToken('xcode'))..'\';'..'</script>\n' or '')
+        ..((ALLOW_HLS or live) and '<script>const ALLOW_HLS='..(ALLOW_HLS and 'true' or 'false')..';const ctok=\''..(CsrfToken(live and 'view' or 'xcode'))..'\';</script>\n' or '')
+  )
   ..'<script src="js/legacy.script.js'..Version('legacy')..'"></script>\n'
 
   ..((USE_DATACAST or live and USE_LIVEJK or not live and JKRDLOG_PATH) and '<script src="js/datastream.js'..Version('datastream')..'"></script>\n' or '')
@@ -993,6 +1092,25 @@ function MacroTemplate()
 ]=]
 end
 
+function pagination(page, a, href)
+  if (not href) then href = mg.script_name:match('[^\\/]*$') end
+  local pageCount=tonumber(edcb.GetPrivateProfile('SET','PAGE_COUNT','30',INI))
+  local tag=page>0 and 'a' or 'button'
+  local s='<div class="pagination mdl-grid mdl-grid--no-spacing"><div class="mdl-grid mdl-grid--no-spacing">\n<'
+    ..tag..' class="mdl-button mdl-js-button mdl-button--icon" '..(page>0 and 'href="'..href..'"' or 'disabled')..'><i class="material-icons">first_page</i></'..tag..'>\n<'
+    ..tag..' class="mdl-button mdl-js-button mdl-button--icon" '..(page>0 and 'href="'..href..'?page='..(page-1)..'"' or 'disabled')..'><i class="material-icons">chevron_left</i></'..tag..'>\n<'
+
+  local n=math.max(math.min(page-2,math.floor(#a/pageCount)-4),0)
+  for i=n, n+4 do
+    s=s..((i==page or i<#a/pageCount) and (i==page and 'button' or 'a')..' class="mdl-button mdl-js-button mdl-button--icon'..(i==page and ' mdl-color--accent mdl-color-text--accent-contrast' or '" href="'..href..'?page='..i)..'"'..(i==page and ' disabled' or '')..'>'..(i+1)..'</'..(i==page and 'button' or 'a')..'>\n<' or '')
+  end
+
+  tag=page<(#a/pageCount-1) and 'a' or 'button'
+  return s..tag..' class="mdl-button mdl-js-button mdl-button--icon" '..(page<(#a/pageCount-1) and 'href="'..href..'?page='..(page+1)..'"' or 'disabled')..'><i class="material-icons">chevron_right</i></'..tag..'>\n<'
+    ..tag..' class="mdl-button mdl-js-button mdl-button--icon" '..(page<(#a/pageCount-1) and 'href="'..href..'?page='..math.ceil(#a/pageCount-1)..'"' or 'disabled')..'><i class="material-icons">last_page</i></'..tag
+    ..'>\n</div></div>\n'
+end
+
 --タイトルのマークを装飾
 function ConvertTitle(title)
   --2か3バイトの[]で囲われた文字列
@@ -1007,12 +1125,11 @@ end
 --検索等のリンクを派生
 CALENDAR_DETAILS=edcb.GetPrivateProfile('CALENDAR','details','%text_char%',INI)
 SearchConverter=function(v, service_name)
-  local title=(v.shortInfo and v.shortInfo.event_name or v.title or ''):gsub('＜.-＞', ''):gsub('【.-】', ''):gsub('%[.-%]', ''):gsub('（.-版）', '')
   local startTime=TimeWithZone(v.startTime)
   local endTime=v.durationSecond and startTime+v.durationSecond or startTime
   local text_char=v.shortInfo and v.shortInfo.text_char:gsub('\r?\n', '%%br%%'):gsub('%%', '%%%%') or ''
   --クライアントサイドで使う情報を置いておく
-  return '<span class="search-links hidden" data-title="'..title
+  return '<span class="search-links hidden" data-title="'..(v.shortInfo and v.shortInfo.event_name or v.title or '')
     ..'" data-service="'..service_name
     ..'" data-dates="'..os.date('!%Y%m%dT%H%M%S', startTime)..'/'..os.date('!%Y%m%dT%H%M%S', endTime)
     ..'" data-details="'..CALENDAR_DETAILS:gsub('%%text_char%%', text_char)..'"></span>'

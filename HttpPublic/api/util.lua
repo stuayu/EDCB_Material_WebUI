@@ -20,8 +20,16 @@ USE_MP4_HLS=tonumber(edcb.GetPrivateProfile('HLS','USE_MP4_HLS',true,INI))~=0
 --視聴機能(viewボタン)でLowLatencyHLSにするかどうか。再生遅延が小さくなる。ネイティブHLS環境ではHTTP/2が要求されるためhls.js使用時のみ有用
 USE_MP4_LLHLS=tonumber(edcb.GetPrivateProfile('HLS','USE_MP4_LLHLS',true,INI))~=0
 
---倍速再生(fastボタン)の速度
-XCODE_FAST=tonumber(edcb.GetPrivateProfile('XCODE','FAST',1.25,INI))
+--倍速再生の倍率のリスト
+XCODE_FAST_RATES={
+  0.25,
+  0.5,
+  0.75,
+  1.0,
+  1.25,
+  1.5,
+  2.0,
+}
 
 --トランスコードオプション
 --HLSのときはセグメント長約4秒、最大8MBytes(=1秒あたり16Mbits)を想定しているので、オプションもそれに合わせること
@@ -30,19 +38,20 @@ XCODE_FAST=tonumber(edcb.GetPrivateProfile('XCODE','FAST',1.25,INI))
 --xcoder:トランスコーダーのToolsフォルダからの相対パス。'|'で複数候補を指定可。見つからなければ最終候補にパスが通っているとみなす
 --       Windows以外では".exe"が除去されて最終候補のみ参照される
 --option:$OUTPUTは必須、再生時に適宜置換される。標準入力からMPEG2-TSを受け取るようにオプションを指定する
---filter*Fast:倍速再生用、未定義でもよい
+--filter(Cinema):等速再生用、filterCinemaは未定義でもよい。特別に':'とするとトランスコードを省略してそのまま出力する
+--filter*FastFunc:倍速再生用、未定義でもよい。倍率に応じたオプションを返す関数を指定する
 --editorFast:単独で倍速再生にできないトランスコーダーの手前に置く編集コマンド。指定方法はxcoderと同様
---editorOptionFast:標準入出力ともにMPEG2-TSで倍速再生になるようにオプションを指定する
+--editorOptionFastFunc:標準入出力ともにMPEG2-TSで倍速再生になるようにオプションを返す関数を指定する
 XCODE_OPTIONS={
   {
     --ffmpegの例。-b:vでおおよその最大ビットレートを決め、-qminで動きの少ないシーンのデータ量を節約する
     name='360p/h264/ffmpeg',
     xcoder='ffmpeg\\ffmpeg.exe|ffmpeg.exe',
-    option='-f mpegts -analyzeduration 1M -i - -map 0:v?:0 -vcodec libx264 -flags:v +cgop -profile:v main -level 31 -b:v 1888k -qmin 23 -maxrate 4M -bufsize 4M -preset veryfast $FILTER -s 640x360 -map 0:a:$AUDIO -acodec aac -ac 2 -b:a 160k $CAPTION -max_interleave_delta 500k $OUTPUT',
+    option='-f mpegts -analyzeduration 1M -i - -map 0:v:0? -vcodec libx264 -flags:v +cgop -profile:v main -level 31 -b:v 1888k -qmin 23 -maxrate 4M -bufsize 4M -preset veryfast $FILTER -s 640x360 -map 0:a:$AUDIO -acodec aac -ac 2 -b:a 160k $CAPTION -max_interleave_delta 500k $OUTPUT',
     filter='-g 120 -vf yadif=0:-1:1',
     filterCinema='-g 96 -vf pullup -r 24000/1001',
-    filterFast='-g 120 -vf yadif=0:-1:1,setpts=PTS/'..XCODE_FAST..' -af atempo='..XCODE_FAST..' -bsf:s setts=ts=TS/'..XCODE_FAST,
-    filterCinemaFast='-g 96 -vf pullup,setpts=PTS/'..XCODE_FAST..' -af atempo='..XCODE_FAST..' -bsf:s setts=ts=TS/'..XCODE_FAST..' -r 24000/1001',
+    filterFastFunc=function(rate) return '-g 120 -vf yadif=0:-1:1,setpts=PTS/'..rate..' -af atempo='..rate..' -bsf:s setts=ts=TS/'..rate end,
+    filterCinemaFastFunc=function(rate) return '-g 96 -vf pullup,setpts=PTS/'..rate..' -af atempo='..rate..' -bsf:s setts=ts=TS/'..rate..' -r 24000/1001' end,
     captionNone='-sn',
     captionHls='-map 0:s? -scodec copy',
     output={'mp4','-f mp4 -movflags frag_keyframe+empty_moov -'},
@@ -51,11 +60,11 @@ XCODE_OPTIONS={
   {
     name='720p/h264/ffmpeg-nvenc',
     xcoder='ffmpeg\\ffmpeg.exe|ffmpeg.exe',
-    option='-f mpegts -analyzeduration 1M -i - -map 0:v?:0 -vcodec h264_nvenc -profile:v main -level 41 -b:v 3936k -qmin 23 -maxrate 8M -bufsize 8M -preset medium $FILTER -s 1280x720 -map 0:a:$AUDIO -acodec aac -ac 2 -b:a 160k $CAPTION -max_interleave_delta 500k $OUTPUT',
+    option='-f mpegts -analyzeduration 1M -i - -map 0:v:0? -vcodec h264_nvenc -profile:v main -level 41 -b:v 3936k -qmin 23 -maxrate 8M -bufsize 8M -preset medium $FILTER -s 1280x720 -map 0:a:$AUDIO -acodec aac -ac 2 -b:a 160k $CAPTION -max_interleave_delta 500k $OUTPUT',
     filter='-g 120 -vf yadif=0:-1:1',
     filterCinema='-g 96 -vf pullup -r 24000/1001',
-    filterFast='-g 120 -vf yadif=0:-1:1,setpts=PTS/'..XCODE_FAST..' -af atempo='..XCODE_FAST..' -bsf:s setts=ts=TS/'..XCODE_FAST,
-    filterCinemaFast='-g 96 -vf pullup,setpts=PTS/'..XCODE_FAST..' -af atempo='..XCODE_FAST..' -bsf:s setts=ts=TS/'..XCODE_FAST..' -r 24000/1001',
+    filterFastFunc=function(rate) return '-g 120 -vf yadif=0:-1:1,setpts=PTS/'..rate..' -af atempo='..rate..' -bsf:s setts=ts=TS/'..rate end,
+    filterCinemaFastFunc=function(rate) return '-g 96 -vf pullup,setpts=PTS/'..rate..' -af atempo='..rate..' -bsf:s setts=ts=TS/'..rate..' -r 24000/1001' end,
     captionNone='-sn',
     captionHls='-map 0:s? -scodec copy',
     output={'mp4','-f mp4 -movflags frag_keyframe+empty_moov -'},
@@ -65,11 +74,11 @@ XCODE_OPTIONS={
     --ffmpegのh264_qsvは環境によって異常にビットレートが高くなったりしてあまり質が良くない。要注意
     name='720p/h264/ffmpeg-qsv',
     xcoder='ffmpeg\\ffmpeg.exe|ffmpeg.exe',
-    option='-f mpegts -analyzeduration 1M -i - -map 0:v?:0 -vcodec h264_qsv -profile:v main -level 41 -b:v 3936k -min_qp_i 23 -min_qp_p 26 -min_qp_b 30 -maxrate 8M -bufsize 8M -preset medium $FILTER -s 1280x720 -map 0:a:$AUDIO -acodec aac -ac 2 -b:a 160k $CAPTION -max_interleave_delta 500k $OUTPUT',
+    option='-f mpegts -analyzeduration 1M -i - -map 0:v:0? -vcodec h264_qsv -profile:v main -level 41 -b:v 3936k -min_qp_i 23 -min_qp_p 26 -min_qp_b 30 -maxrate 8M -bufsize 8M -preset medium $FILTER -s 1280x720 -map 0:a:$AUDIO -acodec aac -ac 2 -b:a 160k $CAPTION -max_interleave_delta 500k $OUTPUT',
     filter='-g 120 -vf yadif=0:-1:1',
     filterCinema='-g 96 -vf pullup -r 24000/1001',
-    filterFast='-g 120 -vf yadif=0:-1:1,setpts=PTS/'..XCODE_FAST..' -af atempo='..XCODE_FAST..' -bsf:s setts=ts=TS/'..XCODE_FAST,
-    filterCinemaFast='-g 96 -vf pullup,setpts=PTS/'..XCODE_FAST..' -af atempo='..XCODE_FAST..' -bsf:s setts=ts=TS/'..XCODE_FAST..' -r 24000/1001',
+    filterFastFunc=function(rate) return '-g 120 -vf yadif=0:-1:1,setpts=PTS/'..rate..' -af atempo='..rate..' -bsf:s setts=ts=TS/'..rate end,
+    filterCinemaFastFunc=function(rate) return '-g 96 -vf pullup,setpts=PTS/'..rate..' -af atempo='..rate..' -bsf:s setts=ts=TS/'..rate..' -r 24000/1001' end,
     captionNone='-sn',
     captionHls='-map 0:s? -scodec copy',
     output={'mp4','-f mp4 -movflags frag_keyframe+empty_moov -'},
@@ -78,11 +87,11 @@ XCODE_OPTIONS={
   {
     name='360p/webm/ffmpeg',
     xcoder='ffmpeg\\ffmpeg.exe|ffmpeg.exe',
-    option='-f mpegts -analyzeduration 1M -i - -map 0:v?:0 -vcodec libvpx -b:v 1888k -quality realtime -cpu-used 1 $FILTER -s 640x360 -map 0:a:$AUDIO -acodec libvorbis -ac 2 -b:a 160k $CAPTION -max_interleave_delta 500k $OUTPUT',
+    option='-f mpegts -analyzeduration 1M -i - -map 0:v:0? -vcodec libvpx -b:v 1888k -quality realtime -cpu-used 1 $FILTER -s 640x360 -map 0:a:$AUDIO -acodec libvorbis -ac 2 -b:a 160k $CAPTION -max_interleave_delta 500k $OUTPUT',
     filter='-vf yadif=0:-1:1',
     filterCinema='-vf pullup -r 24000/1001',
-    filterFast='-vf yadif=0:-1:1,setpts=PTS/'..XCODE_FAST..' -af atempo='..XCODE_FAST,
-    filterCinemaFast='-vf pullup,setpts=PTS/'..XCODE_FAST..' -af atempo='..XCODE_FAST..' -r 24000/1001',
+    filterFastFunc=function(rate) return '-vf yadif=0:-1:1,setpts=PTS/'..rate..' -af atempo='..rate end,
+    filterCinemaFastFunc=function(rate) return '-vf pullup,setpts=PTS/'..rate..' -af atempo='..rate..' -r 24000/1001' end,
     captionNone='-sn',
     output={'webm','-f webm -'},
   },
@@ -90,14 +99,14 @@ XCODE_OPTIONS={
     --NVEncCの例。倍速再生にはffmpegも必要
     name='720p/h264/NVEncC',
     xcoder='NVEncC\\NVEncC64.exe|NVEncC\\NVEncC.exe|NVEncC64.exe|nvencc.exe',
-    option='--input-format mpegts --input-analyze 1 --input-probesize 4M -i - --avhw --profile main --level 4.1 --vbr 3936 --qp-min 23:26:30 --max-bitrate 8192 --vbv-bufsize 8192 --preset default $FILTER --output-res 1280x720 --audio-stream $AUDIO?:stereo --audio-codec $AUDIO?aac --audio-bitrate $AUDIO?160 --audio-disposition $AUDIO?default $CAPTION -m max_interleave_delta:500k $OUTPUT',
+    option='--input-format mpegts --input-analyze 1 --input-probesize 4M -i - --avhw --avsync forcecfr --profile main --level 4.1 --vbr 3936 --qp-min 23:26:30 --max-bitrate 8192 --vbv-bufsize 8192 --preset default $FILTER --output-res 1280x720 --audio-stream $AUDIO?:stereo --audio-codec $AUDIO?aac --audio-bitrate $AUDIO?160 --audio-disposition $AUDIO?default $CAPTION -m max_interleave_delta:500k $OUTPUT',
     audioStartAt=1,
     filter='--gop-len 120 --interlace tff --vpp-deinterlace normal',
     filterCinema='--gop-len 96 --interlace tff --vpp-deinterlace normal --vpp-decimate',
-    filterFast='--fps '..math.floor(30000*XCODE_FAST+0.5)..'/1001 --gop-len '..math.floor(120*XCODE_FAST)..' --interlace tff --vpp-deinterlace normal',
-    filterCinemaFast='--fps '..math.floor(30000*XCODE_FAST+0.5)..'/1001 --gop-len '..math.floor(96*XCODE_FAST)..' --interlace tff --vpp-deinterlace normal --vpp-decimate',
+    filterFastFunc=function(rate) return '--fps '..math.floor(30000*rate+0.5)..'/1001 --gop-len '..math.floor(120*rate)..' --interlace tff --vpp-deinterlace normal' end,
+    filterCinemaFastFunc=function(rate) return '--fps '..math.floor(30000*rate+0.5)..'/1001 --gop-len '..math.floor(96*rate)..' --interlace tff --vpp-deinterlace normal --vpp-decimate' end,
     editorFast='ffmpeg\\ffmpeg.exe|ffmpeg.exe',
-    editorOptionFast='-f mpegts -analyzeduration 1M -i - -bsf:v setts=ts=TS/'..XCODE_FAST..' -map 0:v?:0 -vcodec copy -af atempo='..XCODE_FAST..' -bsf:s setts=ts=TS/'..XCODE_FAST..' -map 0:a -acodec ac3 -ac 2 -b:a 640k -map 0:s? -scodec copy -max_interleave_delta 300k -f mpegts -',
+    editorOptionFastFunc=function(rate) return '-f mpegts -analyzeduration 1M -i - -bsf:v setts=ts=TS/'..rate..' -map 0:v:0? -vcodec copy -af atempo='..rate..' -bsf:s setts=ts=TS/'..rate..' -map 0:a -acodec ac3 -ac 2 -b:a 640k -map 0:s? -scodec copy -max_interleave_delta 300k -f mpegts -' end,
     captionNone='',
     captionHls='--sub-copy',
     output={'mp4','-f mp4 --no-mp4opt -m movflags:frag_keyframe+empty_moov -o -'},
@@ -107,18 +116,45 @@ XCODE_OPTIONS={
     --QSVEncCの例。倍速再生にはffmpegも必要
     name='720p/h264/QSVEncC',
     xcoder='QSVEncC\\QSVEncC64.exe|QSVEncC\\QSVEncC.exe|QSVEncC64.exe|qsvencc.exe',
-    option='--input-format mpegts --input-analyze 1 --input-probesize 4M -i - --avhw --profile main --level 4.1 --qvbr 3936 --qvbr-quality 26 --fallback-rc --max-bitrate 8192 --vbv-bufsize 8192 $FILTER --output-res 1280x720 --audio-stream $AUDIO?:stereo --audio-codec $AUDIO?aac --audio-bitrate $AUDIO?160 --audio-disposition $AUDIO?default $CAPTION -m max_interleave_delta:500k $OUTPUT',
+    option='--input-format mpegts --input-analyze 1 --input-probesize 4M -i - --avhw --avsync forcecfr --profile main --level 4.1 --qvbr 3936 --qvbr-quality 26 --fallback-rc --max-bitrate 8192 --vbv-bufsize 8192 $FILTER --output-res 1280x720 --audio-stream $AUDIO?:stereo --audio-codec $AUDIO?aac --audio-bitrate $AUDIO?160 --audio-disposition $AUDIO?default $CAPTION -m max_interleave_delta:500k $OUTPUT',
     audioStartAt=1,
     filter='--gop-len 120 --interlace tff --vpp-deinterlace normal',
     filterCinema='--gop-len 96 --interlace tff --vpp-deinterlace normal --vpp-decimate',
-    filterFast='--fps '..math.floor(30000*XCODE_FAST+0.5)..'/1001 --gop-len '..math.floor(120*XCODE_FAST)..' --interlace tff --vpp-deinterlace normal',
-    filterCinemaFast='--fps '..math.floor(30000*XCODE_FAST+0.5)..'/1001 --gop-len '..math.floor(96*XCODE_FAST)..' --interlace tff --vpp-deinterlace normal --vpp-decimate',
+    filterFastFunc=function(rate) return '--fps '..math.floor(30000*rate+0.5)..'/1001 --gop-len '..math.floor(120*rate)..' --interlace tff --vpp-deinterlace normal' end,
+    filterCinemaFastFunc=function(rate) return '--fps '..math.floor(30000*rate+0.5)..'/1001 --gop-len '..math.floor(96*rate)..' --interlace tff --vpp-deinterlace normal --vpp-decimate' end,
     editorFast='ffmpeg\\ffmpeg.exe|ffmpeg.exe',
-    editorOptionFast='-f mpegts -analyzeduration 1M -i - -bsf:v setts=ts=TS/'..XCODE_FAST..' -map 0:v?:0 -vcodec copy -af atempo='..XCODE_FAST..' -bsf:s setts=ts=TS/'..XCODE_FAST..' -map 0:a -acodec ac3 -ac 2 -b:a 640k -map 0:s? -scodec copy -max_interleave_delta 300k -f mpegts -',
+    editorOptionFastFunc=function(rate) return '-f mpegts -analyzeduration 1M -i - -bsf:v setts=ts=TS/'..rate..' -map 0:v:0? -vcodec copy -af atempo='..rate..' -bsf:s setts=ts=TS/'..rate..' -map 0:a -acodec ac3 -ac 2 -b:a 640k -map 0:s? -scodec copy -max_interleave_delta 300k -f mpegts -' end,
     captionNone='',
     captionHls='--sub-copy',
     output={'mp4','-f mp4 --no-mp4opt -m movflags:frag_keyframe+empty_moov -o -'},
     outputHls={'m2t','-f mpegts -o -'},
+  },
+  {
+    --QSVEncCの例。HEVC(未対応環境多め)。倍速再生にはffmpegも必要
+    name='720p/hevc/QSVEncC',
+    xcoder='QSVEncC\\QSVEncC64.exe|QSVEncC\\QSVEncC.exe|QSVEncC64.exe|qsvencc.exe',
+    option='--input-format mpegts --input-analyze 1 --input-probesize 4M -i - --avhw --avsync forcecfr -c hevc --profile main --level 4.1 --qvbr 3936 --qvbr-quality 26 --fallback-rc --max-bitrate 8192 --vbv-bufsize 8192 $FILTER --output-res 1280x720 --audio-stream $AUDIO?:stereo --audio-codec $AUDIO?aac --audio-bitrate $AUDIO?160 --audio-disposition $AUDIO?default $CAPTION -m max_interleave_delta:500k $OUTPUT',
+    audioStartAt=1,
+    filter='--gop-len 120 --interlace tff --vpp-deinterlace normal',
+    filterCinema='--gop-len 96 --interlace tff --vpp-deinterlace normal --vpp-decimate',
+    filterFastFunc=function(rate) return '--fps '..math.floor(30000*rate+0.5)..'/1001 --gop-len '..math.floor(120*rate)..' --interlace tff --vpp-deinterlace normal' end,
+    filterCinemaFastFunc=function(rate) return '--fps '..math.floor(30000*rate+0.5)..'/1001 --gop-len '..math.floor(96*rate)..' --interlace tff --vpp-deinterlace normal --vpp-decimate' end,
+    editorFast='ffmpeg\\ffmpeg.exe|ffmpeg.exe',
+    editorOptionFastFunc=function(rate) return '-f mpegts -analyzeduration 1M -i - -bsf:v setts=ts=TS/'..rate..' -map 0:v:0? -vcodec copy -af atempo='..rate..' -bsf:s setts=ts=TS/'..rate..' -map 0:a -acodec ac3 -ac 2 -b:a 640k -map 0:s? -scodec copy -max_interleave_delta 300k -f mpegts -' end,
+    captionNone='',
+    captionHls='--sub-copy',
+    output={'mp4','-f mp4 --no-mp4opt -m movflags:frag_keyframe+empty_moov -o -'},
+    outputHls={'m2t','-f mpegts -o -'},
+  },
+  {
+    --TS-Live!方式の例。そのまま転送。トランスコーダー不要(tsreadex.exeは必要)
+    name='tslive',
+    tslive=true,
+    xcoder='',
+    option='',
+    filter=':',
+    filterFastFunc=function() return ':' end,
+    output={'m2t',''},
   },
 }
 
@@ -138,9 +174,36 @@ USE_DATACAST=tonumber(edcb.GetPrivateProfile('SET','DATACAST',true,INI))~=0
 --利用には実況を扱うツール側の対応(NicoJKの場合はcommentShareMode)が必要
 USE_LIVEJK=tonumber(edcb.GetPrivateProfile('JK','LIVEJK',true,INI))~=0
 
---実況ログ表示機能を使う場合、jkrdlog.exeの絶対パス
+--jkcnslを直接呼び出してライブ実況する場合、その絶対パス。Windows以外ではコマンド名
+--コメント投稿したい場合はあらかじめjkcnsl側でログインしておく(jkcnslのReadmeを参照)
+JKCNSL_PATH=edcb.GetPrivateProfile('JK','JKCNSL_PATH','',INI)
+if JKCNSL_PATH=='' then JKCNSL_PATH=nil end
+
+--jkcnslの設定ファイルなどが置かれている場所(通常、変更不要)
+JKCNSL_UNIX_BASE_DIR=edcb.GetPrivateProfile('JK','UNIX_BASE_DIR','/var/local/jkcnsl',INI)
+
+--以下、JKCNSL_で始まる定数はjkcnslを直接呼び出してライブ実況する場合のオプション。意味はNicoJKの対応する設定と同じ
+JKCNSL_REFUGE_URI=edcb.GetPrivateProfile('JK','refugeUri','',INI)
+if JKCNSL_REFUGE_URI=='' then JKCNSL_REFUGE_URI=nil end
+JKCNSL_DROP_FORWARDED_COMMENT=edcb.GetPrivateProfile('JK','dropForwardedComment',false,INI)~=0
+JKCNSL_REFUGE_MIXING=edcb.GetPrivateProfile('JK','refugeMixing',false,INI)~=0
+JKCNSL_ANONYMITY=edcb.GetPrivateProfile('JK','anonymity',true,INI)~=0
+
+--実況の番号(jk?)と、チャットのID(ch???やlv???など)
+--指定しない番号には"jkconst.lua"にある既定値が使われる
+JKCNSL_CHAT_STREAMS={
+  --jk7の対応づけを変更したいとき
+  --[7]='ch???',
+  --jk7はどこにも接続したくないとき
+  --[7]='',
+  --jk7はニコニコ実況だけにしたいとき
+  --[7]='ch2646441,',
+  --jk7はNX-Jikkyo・避難所だけにしたいとき("NX"の部分は任意の英数字)
+  --[7]=',NX',
+}
+
+--実況ログ表示機能を使う場合、jkrdlog.exeの絶対パス。Windows以外ではコマンド名
 JKRDLOG_PATH=edcb.GetPrivateProfile('JK','JKRDLOG_PATH','',INI)
---JKRDLOG_PATH='C:\\Path\\to\\jkrdlog.exe'
 if JKRDLOG_PATH=='' then JKRDLOG_PATH=nil end
 
 --実況コメントの文字の高さ(px)
@@ -151,7 +214,7 @@ JK_COMMENT_DURATION=tonumber(edcb.GetPrivateProfile('JK','COMMENT_DURATION',5,IN
 
 --実況ログ表示機能のデジタル放送のサービスIDと、実況の番号(jk?)
 --キーの下4桁の16進数にサービスID、上1桁にネットワークID(ただし地上波は15=0xF)を指定
---指定しないサービスにはjkrdlogの既定値が使われる
+--指定しないサービスには"jkconst.lua"にある既定値が使われる
 JK_CHANNELS={
   --例:テレビ東京(0x0430)をjk7と対応づけたいとき
   --[0xF0430]=7,
@@ -168,8 +231,6 @@ JK_CUSTOM_REPLACE=[=[
   tag = tag.replace(/^<chat(?=[^>]*? premium="3")([^>]*? mail=")([^>]*?>)\/spi /, '<chat align="right"$1shita small white2 $2');
 ]=]
 
---トランスコードするかどうか。する場合はtsreadex.exeとトランスコーダー(ffmpeg.exeなど)を用意すること
-XCODE=tonumber(edcb.GetPrivateProfile('XCODE','XCODE',true,INI))~=0
 --トランスコードするプロセスを1つだけに制限するかどうか(並列処理できる余裕がシステムにない場合など)
 XCODE_SINGLE=tonumber(edcb.GetPrivateProfile('XCODE','SINGLE',false,INI))~=0
 --ログを"log"フォルダに保存するかどうか
@@ -189,15 +250,30 @@ POST_MAX_BYTE=1024*1024
 
 --以下、関数名はパスカルケース、定数名はアッパースネークケースとし、変数は関数スコープに閉じ込めること
 
+function Checkbox(b,v)
+  return ' type="checkbox" value="'..(v or 1)..(b and '" checked' or '"')
+end
+
+function Radiobtn(b,v)
+  return ' type="radio" value="'..(v or 1)..(b and '" checked' or '"')
+end
+
+function Selected(b)
+  return b and ' selected' or ''
+end
+
 function GetTranscodeQueries(qs)
   local reload=(mg.get_var(qs,'reload') or ''):match('^'..('[0-9a-f]'):rep(16,'?')..'$')
   local loadKey=reload or (mg.get_var(qs,'load') or ''):match('^'..('[0-9a-f]'):rep(16,'?')..'$')
+  local option=GetVarInt(qs,'option',1,#XCODE_OPTIONS)
   return {
-    option=GetVarInt(qs,'option',1,#XCODE_OPTIONS),
+    option=option,
+    tslive=XCODE_OPTIONS[option or 1].tslive,
     offset=GetVarInt(qs,'offset',0,100),
     audio2=GetVarInt(qs,'audio2')==1,
     cinema=GetVarInt(qs,'cinema')==1,
-    fast=GetVarInt(qs,'fast')==1,
+    --0は明示的に等速を表す
+    fast=option and not XCODE_OPTIONS[option].filterFastFunc and 0 or GetVarInt(qs,'fast',0,#XCODE_FAST_RATES),
     reload=not not reload,
     loadKey=loadKey,
     caption=(GetVarInt(qs,'caption') or XCODE_CHECK_CAPTION and 1)==1,
@@ -210,13 +286,13 @@ function ConstructTranscodeQueries(xq)
     ..(xq.offset and '&amp;offset='..xq.offset or '')
     ..(xq.audio2 and '&amp;audio2=1' or '')
     ..(xq.cinema and '&amp;cinema=1' or '')
-    ..(xq.fast and '&amp;fast=1' or '')
+    ..(xq.fast and '&amp;fast='..xq.fast or '')
     ..(xq.loadKey and '&amp;'..(xq.reload and 're' or '')..'load='..xq.loadKey or '')
 end
 
 
 function RecModeTextList()
-  return {'全サービス','指定サービス','全サービス（デコード処理なし）','指定サービス（デコード処理なし）','視聴','無効'}
+  return {'全サービス','指定サービス','全サービス（デコード処理なし）','指定サービス（デコード処理なし）','視聴'}
 end
 
 function NetworkType(onid)
@@ -279,8 +355,8 @@ function SelectChDataList(a)
     --EPG取得対象サービスのみ
     if v.epgCapFlag then
       r[#r+1]=v
-      end
     end
+  end
   return r
 end
 
@@ -339,16 +415,19 @@ function DecorateUri(s)
     --特定のTLDっぽい文字列があればホスト部分をさかのぼる
     local h=0
     if r:find('^%.com/',i) or r:find('^%.jp/',i) or r:find('^%.tv/',i) then
-      while i-h>1 and hwhost:find(r:sub(i-h-1,i-h-1),1,true) do
+      --装飾前文字列はHTMLエスケープ済みであることを仮定しているので<>"となりうる表現も除外する
+      while i-h>1 and hwhost:find(r:sub(i-h-1,i-h-1),1,true) and
+            (i-h<5 or not r:find('^&[lg]t;',i-h-4)) and (i-h<7 or not r:find('^&quot;',i-h-6)) do
         h=h+1
       end
     end
     if (h>0 and (i-h==1 or r:find('^[^/]',i-h-1))) or r:find('^https?://',i) then
       local j=i
-      while j<=#r and hw:find(r:sub(j,j),1,true) do
+      while j<=#r and hw:find(r:sub(j,j),1,true) and
+            not r:find('^&[lg]t;',j) and not r:find('^&quot;',j) do
         j=j+1
       end
-      t=t..s:sub(spos(n),spos(i-h)-1)..'<a href="'..(h>0 and 'https://' or '')
+      t=t..s:sub(spos(n),spos(i-h)-1)..'<a rel="noreferrer" href="'..(h>0 and 'https://' or '')
         ..r:sub(i-h,j-1):gsub('&amp;','&'):gsub('&','&amp;')..'" target="_blank">'..s:sub(spos(i-h),spos(j)-1)..'</a>'
       n=j
       i=j-1
@@ -527,8 +606,9 @@ end
 
 --コマンドラインの引数として使うパスを引用符で囲む
 --※Windowsでは引用符などパスとして不正な文字がpathに含まれていないことが前提
-function QuoteCommandArgForPath(path)
-  return WIN32 and '"'..path:gsub('[&%^]','^%0')..'"' or "'"..path:gsub("'","'\"'\"'").."'"
+--※Windowsでstartコマンドなどでネストされたコマンドの引数として使うときはnestedにする
+function QuoteCommandArgForPath(path,nested)
+  return WIN32 and '"'..(nested and path:gsub('[&^]','^%0') or path):gsub('%%','"%%"')..'"' or "'"..path:gsub("'","'\"'\"'").."'"
 end
 
 --SendTSTCPのストリーム取得用パイプのパス
@@ -580,6 +660,36 @@ function OpenTsmemsegPipe(name,suffix)
   return nil
 end
 
+--ソート済みリストを二分探索してlower(upper)境界のインデックスを返す
+function BinarySearchBound(a,k,comp,upper)
+  local n,i=#a,1
+  while n~=i-1 do
+    local j=i+math.floor((n-i+1)/2)
+    if upper and (comp and not comp(k,a[j]) or not comp and not k<a[j]) or
+       not upper and (comp and comp(a[j],k) or not comp and a[j]<k) then i=j+1 else n=j-1 end
+  end
+  return i
+end
+
+--ソート済みリストを二分探索して一致する要素を返す
+function BinarySearch(a,k,comp)
+  local i=BinarySearchBound(a,k,comp)
+  if i<=#a and (comp and not comp(k,a[i]) or not comp and not k<a[i]) then return a[i] end
+  return nil
+end
+
+--奇数番目の引数(偶数番目は降順か否かの真偽値)で指定した1つ以上のフィールドでテーブルを比較する関数を返す
+function CompareFields(...)
+  local args={...}
+  local function comp(a,b,i)
+    i=i or 1
+    local k=args[i]
+    local desc=i<#args and args[i+1]
+    return desc and b[k]<a[k] or not desc and a[k]<b[k] or i+1<#args and a[k]==b[k] and comp(a,b,i+2)
+  end
+  return comp
+end
+
 --符号なし整数の時計算の差を計算する
 function UintCounterDiff(a,b)
   return (a+0x100000000-b)%0x100000000
@@ -589,13 +699,95 @@ end
 function ReadToPcr(f,pid)
   for i=1,10000 do
     local buf=f:read(188)
-    if buf and #buf==188 and buf:byte(1)==0x47 then
-      --adaptation_field_control and adaptation_field_length and PCR_flag
-      if math.floor(buf:byte(4)/16)%4>=2 and buf:byte(5)>=5 and math.floor(buf:byte(6)/16)%2~=0 then
+    if not buf or #buf~=188 or buf:byte(1)~=0x47 then break end
+    local adaptation=math.floor(buf:byte(4)/16)%4
+    if adaptation>=2 then
+      --adaptation_field_length and PCR_flag
+      if buf:byte(5)>=5 and math.floor(buf:byte(6)/16)%2~=0 then
         local pcr=((buf:byte(7)*256+buf:byte(8))*256+buf:byte(9))*256+buf:byte(10)
         local pid2=buf:byte(2)%32*256+buf:byte(3)
         if not pid or pid==pid2 then
           return pcr,pid2,i*188
+        end
+      end
+    end
+  end
+  return nil
+end
+
+--MPEG-2映像のIフレームを取得する
+function GetIFrameVideoStream(f)
+  local exclude={}
+  local priorPid=8192
+  local videoPid=nil
+  local stream,pesRemain,headerRemain,seqState
+  local function findPictureCodingType(buf)
+    for i=1,#buf do
+      local b=buf:byte(i)
+      if (seqState<=1 or seqState==3) and b==0 or seqState==4 then
+        seqState=seqState+1
+      elseif seqState==2 and b<=1 then
+        if b==1 then
+          seqState=seqState+1
+        end
+      elseif seqState==5 then
+        seqState=-1
+        return math.floor(b/8)%8
+      else
+        seqState=0
+      end
+    end
+    return nil
+  end
+  for i=1,15000 do
+    local buf=f:read(188)
+    if not buf or #buf~=188 or buf:byte(1)~=0x47 then break end
+    local errorAndUnitStart=math.floor(buf:byte(2)/64)
+    local pid=buf:byte(2)%32*256+buf:byte(3)
+    if errorAndUnitStart<=1 and pid==videoPid or
+       errorAndUnitStart==1 and not videoPid then
+      if errorAndUnitStart==1 and videoPid then
+        if pesRemain==0 then
+          --PESがたまった
+          if seqState<0 then return table.concat(stream) end
+          exclude[pid]=true
+        end
+        videoPid=nil
+      end
+      local adaptation=math.floor(buf:byte(4)/16)%4
+      local adaptationLen=adaptation==1 and -1 or adaptation==3 and buf:byte(5) or 183
+      if adaptationLen>183 then break end
+      local pos=6+adaptationLen
+      --H.262のpicture_coding_typeが見つからないものは除外。複数候補ある場合はPIDが小さいほう
+      if not videoPid and not exclude[pid] and pid<=priorPid and pos<=180 and buf:find('^\0\0\1[\xE0-\xEF]',pos) then
+        --H.262/264/265 PES
+        videoPid=pid
+        stream={}
+        pesRemain=buf:byte(pos+4)*256+buf:byte(pos+5)
+        headerRemain=buf:byte(pos+8)
+        seqState=0
+        pos=pos+9
+      end
+      if videoPid and pos<=188 then
+        local n=math.min(189-pos,headerRemain)
+        headerRemain=headerRemain-n
+        pos=pos+n
+        if pos<=188 then
+          n=pesRemain>0 and math.min(189-pos,pesRemain) or 189-pos
+          stream[#stream+1]=buf:sub(pos,pos+n-1)
+          if seqState>=0 and findPictureCodingType(stream[#stream])~=1 and seqState<0 then
+            --Iフレームじゃない
+            priorPid=pid
+            videoPid=nil
+          elseif pesRemain>0 then
+            pesRemain=pesRemain-n
+            if pesRemain==0 then
+              --PESがたまった
+              if seqState<0 then return table.concat(stream) end
+              exclude[pid]=true
+              videoPid=nil
+            end
+          end
         end
       end
     end
@@ -696,10 +888,10 @@ function GetTotAndServiceID(f)
       for i=1,400000 do
         local buf=f:read(188)
         if not buf or #buf~=188 or buf:byte(1)~=0x47 then break end
+        local errorAndUnitStart=math.floor(buf:byte(2)/64)
         local adaptation=math.floor(buf:byte(4)/16)%4
         local adaptationLen=adaptation==1 and -1 or adaptation==3 and buf:byte(5) or 183
-        --payload_unit_start_indicator
-        if math.floor(buf:byte(2)/64)%2==1 and adaptationLen<183 then
+        if errorAndUnitStart==1 and adaptationLen<183 then
           local pid=buf:byte(2)%32*256+buf:byte(3)
           local pointer=7+adaptationLen+buf:byte(6+adaptationLen)
           local id=pointer<=188 and buf:byte(pointer)
@@ -749,13 +941,6 @@ function ReadJikkyoChunk(f)
     if not payload or #payload~=payloadSize then return nil end
   end
   return head..payload
-end
-
---jkrdlogに渡す実況のIDを取得する
-function GetJikkyoID(nid,sid)
-  --地上波のサービス種別とサービス番号はマスクする
-  local id=NetworkType(nid)=='地デジ' and 0xf0000+bit32.band(sid,0xfe78) or nid*65536+sid
-  return not JK_CHANNELS[id] and 'ns'..id or JK_CHANNELS[id]>0 and 'jk'..JK_CHANNELS[id]
 end
 
 --リトルエンディアンの値を取得する
@@ -864,6 +1049,23 @@ function GetVarInt(qs,n,ge,le,occ)
   return nil
 end
 
+--クエリパラメータから時刻を取得する
+function GetVarTime(qs,n,occ)
+  local hour,min,sec=(mg.get_var(qs,n,occ) or ''):match('^(%d+):(%d+):?(%d*)')
+  if hour then
+    return hour*3600+min*60+(tonumber(sec) or 0)
+  end
+  return 0
+end
+
+--クエリパラメータから日時を取得する
+function GetVarDate(qs,n,occ)
+  local year,month,day=(mg.get_var(qs,n,occ) or ''):match('^(%d%d%d%d)%-(%d?%d)%-(%d?%d)$')
+  if year then
+    return TimeWithZone({year=year,month=month,day=day,hour=0})
+  end
+end
+
 --クエリパラメータからサービスのIDを取得する
 function GetVarServiceID(qs,n,occ,leextra)
   local onid,tsid,sid,x=(mg.get_var(qs,n,occ) or ''):match('^([0-9]+)%-([0-9]+)%-([0-9]+)'..(leextra and '%-([0-9]+)' or '')..'$')
@@ -920,7 +1122,7 @@ end
 
 if not WIN32 then
   INDEX_ENABLE_SUSPEND=false
-  USE_LIVEJK=false
+  USE_LIVEJK=not not JKCNSL_PATH
 end
 
 ----------ここまでLegacy WebUIから----------
@@ -941,6 +1143,28 @@ if LOGO_DIR then
   --LogoData.iniとLogoフォルダの絶対パス
   LOGO_INI=edcb.GetPrivateProfile('SET','LOGO_INI',TVTest..'\\LogoData.ini',INI)
   LOGO_DIR=edcb.GetPrivateProfile('SET','LOGO_DIR',TVTest..'\\Logo',INI)
+end
+
+--予想ファイルサイズ
+BITRATE={}
+function getPredictionSize(v)
+  local rsdef=(edcb.GetReserveData(0x7FFFFFFF) or {}).recSetting
+  local size=nil
+  local key
+  if v.recSetting.recMode~=4 then
+    for j=1,4 do
+      key=('%04X%04X%04X'):format((j>3 and 65535 or v.onid),(j>2 and 65535 or v.tsid),(j>1 and 65535 or v.sid))
+      BITRATE[key]=BITRATE[key] or tonumber(edcb.GetPrivateProfile('BITRATE',key,0,'Bitrate.ini')) or 0
+      if BITRATE[key]>0 then
+        break
+      elseif j==4 then
+        BITRATE[key]=19456
+      end
+    end
+    size=BITRATE[key]/8*1000*math.max((v.recSetting.startMargin or rsdef and rsdef.startMargin or 0)+
+                                  (v.recSetting.endMargin or rsdef and rsdef.endMargin or 0)+v.durationSecond,0)
+  end
+  return size
 end
 
 function HideServiceList()
@@ -1002,9 +1226,11 @@ function CustomServiceList()
 end
 
 --録画設定をxmlに
-function XmlRecSetting(rs, rsdef)
-  local s='<recsetting><recMode>'
-    ..rs.recMode..'</recMode><priority>'
+function XmlRecSetting(rs)
+  local rsdef=(edcb.GetReserveData(0x7FFFFFFF) or {}).recSetting
+  local s='<recsetting><recEnabled>'
+    ..(rs.recMode~=5 and 1 or 0)..'</recEnabled><recMode>'
+    ..(rs.recMode~=5 and rs.recMode or rs.noRecMode or 1)..'</recMode><priority>'
     ..rs.priority..'</priority><tuijyuuFlag>'
     ..(rs.tuijyuuFlag and 1 or 0)..'</tuijyuuFlag><serviceMode>'
     ..rs.serviceMode..'</serviceMode><pittariFlag>'
@@ -1018,11 +1244,11 @@ function XmlRecSetting(rs, rsdef)
   end
   s=s..'</recFolderList><suspendMode>'
     ..rs.suspendMode..'</suspendMode><defserviceMode>'
-    ..(rsdef and rsdef.recSetting.serviceMode or rs.suspendMode)..'</defserviceMode><rebootFlag>'
-    ..((rs.suspendMode==0 and rsdef and rsdef.recSetting.rebootFlag or rs.suspendMode~=0 and rs.rebootFlag) and 1 or 0)..'</rebootFlag><useMargineFlag>'
+    ..(rsdef.serviceMode or rs.suspendMode)..'</defserviceMode><rebootFlag>'
+    ..((rs.suspendMode==0 and rsdef.rebootFlag or rs.suspendMode~=0 and rs.rebootFlag) and 1 or 0)..'</rebootFlag><useMargineFlag>'
     ..(rs.startMargin and 1 or 0)..'</useMargineFlag><startMargine>'
-    ..(rs.startMargin or rsdef and rsdef.recSetting.startMargin or 0)..'</startMargine><endMargine>'
-    ..(rs.endMargin or rsdef and rsdef.recSetting.endMargin or 0)..'</endMargine><continueRecFlag>'
+    ..(rs.startMargin or rsdef.startMargin or 0)..'</startMargine><endMargine>'
+    ..(rs.endMargin or rsdef.endMargin or 0)..'</endMargine><continueRecFlag>'
     ..(rs.continueRecFlag and 1 or 0)..'</continueRecFlag><partialRecFlag>'
     ..rs.partialRecFlag..'</partialRecFlag><tunerID>'
     ..rs.tunerID..'</tunerID><partialRecFolder>'
@@ -1036,54 +1262,53 @@ function XmlRecSetting(rs, rsdef)
 end
 
 --録画設定を取得
-function GetRecSetting(rs,post)
-  if rs then
-    local useMargin=GetVarInt(post,'useDefMarginFlag')~=1 or nil
-    rs={
-      batFilePath=mg.get_var(post, 'batFilePath') and mg.get_var(post, 'batFilePath')..(#mg.get_var(post, 'batFileTag')>0 and '*'..mg.get_var(post, 'batFileTag') or '') or rs.batFilePath,
-      recFolderList={},
-      partialRecFolder={},
-      recMode=GetVarInt(post,'recMode',0,5),
-      tuijyuuFlag=GetVarInt(post,'tuijyuuFlag'),
-      priority=GetVarInt(post,'priority',1,5),
-      pittariFlag=GetVarInt(post,'pittariFlag'),
-      suspendMode=GetVarInt(post,'suspendMode',0,4),
-      rebootFlag=GetVarInt(post,'rebootFlag'),
-      startMargin=useMargin and GetVarInt(post,'startMargin',-6*3600,6*3600),
-      endMargin=useMargin and GetVarInt(post,'endMargin',-6*3600,6*3600),
-      serviceMode=GetVarInt(post,'serviceMode')==1 and 0 or 1+16*(GetVarInt(post,'serviceMode_1',0,1) or 0)+32*(GetVarInt(post,'serviceMode_2',0,1) or 0),
-      continueRecFlag=GetVarInt(post,'continueRecFlag'),
-      tunerID=GetVarInt(post,'tunerID'),
-      partialRecFlag=GetVarInt(post,'partialRecFlag',0,1) or 0
-    }
-    if mg.get_var(post, 'recFolder') then
-      for i=0,10000 do
-        if not mg.get_var(post, 'recFolder', i) then break end
-        table.insert(rs.recFolderList, {
-          recFolder=mg.get_var(post, 'recFolder', i),
-          writePlugIn=mg.get_var(post, 'writePlugIn', i),
-          recNamePlugIn=mg.get_var(post, 'recNamePlugIn', i)..(#mg.get_var(post, 'recNamePlugIn', i)>0 and #mg.get_var(post, 'recName', i)>0 and '?'..mg.get_var(post, 'recName', i) or '')
-        } )
-      end
+function GetRecSetting(post)
+  local useMargin=GetVarInt(post,'useDefMarginFlag')~=1 or nil
+  local rs={
+    batFilePath=mg.get_var(post, 'batFilePath') and mg.get_var(post, 'batFilePath')..(#mg.get_var(post, 'batFileTag')>0 and '*'..mg.get_var(post, 'batFileTag') or '') or rs.batFilePath,
+    recFolderList={},
+    partialRecFolder={},
+    recMode=GetVarInt(post,'recEnabled')~=1 and 5 or GetVarInt(post,'recMode',0,4),
+    noRecMode=GetVarInt(post,'recMode',0,4),
+    tuijyuuFlag=GetVarInt(post,'tuijyuuFlag'),
+    priority=GetVarInt(post,'priority',1,5),
+    pittariFlag=GetVarInt(post,'pittariFlag'),
+    suspendMode=GetVarInt(post,'suspendMode',0,4),
+    rebootFlag=GetVarInt(post,'rebootFlag'),
+    startMargin=useMargin and GetVarInt(post,'startMargin',-6*3600,6*3600),
+    endMargin=useMargin and GetVarInt(post,'endMargin',-6*3600,6*3600),
+    serviceMode=GetVarInt(post,'serviceMode')==1 and 0 or 1+16*(GetVarInt(post,'serviceMode_1',0,1) or 0)+32*(GetVarInt(post,'serviceMode_2',0,1) or 0),
+    continueRecFlag=GetVarInt(post,'continueRecFlag'),
+    tunerID=GetVarInt(post,'tunerID'),
+    partialRecFlag=GetVarInt(post,'partialRecFlag',0,1) or 0
+  }
+  if mg.get_var(post, 'recFolder') then
+    for i=0,10000 do
+      if not mg.get_var(post, 'recFolder', i) then break end
+      table.insert(rs.recFolderList, {
+        recFolder=mg.get_var(post, 'recFolder', i),
+        writePlugIn=mg.get_var(post, 'writePlugIn', i),
+        recNamePlugIn=mg.get_var(post, 'recNamePlugIn', i)..(#mg.get_var(post, 'recNamePlugIn', i)>0 and #mg.get_var(post, 'recName', i)>0 and '?'..mg.get_var(post, 'recName', i) or '')
+      } )
     end
-    if mg.get_var(post, 'partialrecFolder') then
-      for i=0,10000 do
-        if not mg.get_var(post, 'partialrecFolder', i) then break end
-        table.insert(rs.partialRecFolder, {
-          recFolder=mg.get_var(post, 'partialrecFolder', i),
-          writePlugIn=mg.get_var(post, 'partialwritePlugIn', i),
-          recNamePlugIn=mg.get_var(post, 'partialrecNamePlugIn', i)..(#mg.get_var(post, 'partialrecName', i)>0 and #mg.get_var(post, 'partialrecName', i)>0 and '?'..mg.get_var(post, 'partialrecName', i) or '')
-        } )
-      end
+  end
+  if mg.get_var(post, 'partialrecFolder') then
+    for i=0,10000 do
+      if not mg.get_var(post, 'partialrecFolder', i) then break end
+      table.insert(rs.partialRecFolder, {
+        recFolder=mg.get_var(post, 'partialrecFolder', i),
+        writePlugIn=mg.get_var(post, 'partialwritePlugIn', i),
+        recNamePlugIn=mg.get_var(post, 'partialrecNamePlugIn', i)..(#mg.get_var(post, 'partialrecName', i)>0 and #mg.get_var(post, 'partialrecName', i)>0 and '?'..mg.get_var(post, 'partialrecName', i) or '')
+      } )
     end
-    if rs.recMode and
-       rs.priority and
-       rs.suspendMode and
-       (not useMargin or rs.startMargin and rs.endMargin) and
-       rs.tunerID
-    then
-      return rs
-    end
+  end
+  if rs.recMode and
+      rs.priority and
+      rs.suspendMode and
+      (not useMargin or rs.startMargin and rs.endMargin) and
+      rs.tunerID
+  then
+    return rs
   end
   return false
 end
@@ -1126,12 +1351,9 @@ function GetSearchKey(post)
   end
   if mg.get_var(post, 'serviceList') then
     for i=0,10000 do
-      local v=mg.get_var(post, 'serviceList', i)
-      if not v then break end
-      local m={string.match(v, '^(%d+)%-(%d+)%-(%d+)$')}
-      if #m==3 then
-        table.insert(key.serviceList, {onid=0+m[1], tsid=0+m[2], sid=0+m[3]})
-      end
+      local onid,tsid,sid=GetVarServiceID(post, 'serviceList', i)
+      if onid==0 then break end
+      table.insert(key.serviceList, {onid=onid, tsid=tsid, sid=sid})
     end
   end
   if mg.get_var(post, 'dateList') then

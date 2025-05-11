@@ -9,9 +9,8 @@ ct={
   title='放送中',
   video='live',
   js='<script src="js/onair.js'..Version('onair')..'"></script>\n',
-  progres=true,
+  fixedTabs=true,
   menu='<li class="mdl-menu__item" id="forced" data-ctok="'..CsrfToken('tvcast')..'">強制停止</li>'
-    ..'<li class="ext mdl-menu__item mdl-menu__item--full-bleed-divider"><label for="load_subtitles" class="mdl-layout-spacer">字幕の読み込み</label><span><label class="mdl-switch mdl-js-switch" for="load_subtitles"><input type="checkbox" id="load_subtitles" class="mdl-switch__input" checked></label></span></li>'
     ..'<li id="menu_popup" class="ext mdl-menu__item"><label for="open_popup" class="mdl-layout-spacer">ポップアップ</label><span><label class="mdl-switch mdl-js-switch" for="open_popup"><input type="checkbox" id="open_popup" class="mdl-switch__input"></label></span></li>\n'
     ..'<li id="menu_apk" class="ext mdl-menu__item hidden"><label for="apk" class="mdl-layout-spacer">アプリで開く</label><span><label class="mdl-switch mdl-js-switch" for="apk"><input type="checkbox" id="apk" class="mdl-switch__input"></label></span></li>\n'
     ..'<li id="menu_quality" class="ext mdl-menu__item hidden"><button><span class="mdl-layout-spacer">画質</span><span><i class="material-icons">navigate_next</i></button></li>\n'
@@ -29,7 +28,7 @@ end
 
 ct.main='<div class="submenu"><ul class="ext mdl-menu mdl-menu--bottom-right mdl-js-menu" for="menu_quality"></ul></div>\n'
   ..'  <main class="sidePanel-container mdl-layout__content">\n'
-  ..(USE_LIVEJK and '<div id="jk-comm" class="hidden jikkyo-comments"></div>\n' or '')
+  ..(USE_LIVEJK and '<div id="jikkyo-comm" class="hidden jikkyo-comments"><div id="jikkyo-chats"></div></div>\n' or '')
 
   .. SidePanelTemplate()
 
@@ -129,4 +128,7 @@ ct.main=ct.main..table.concat(ctt)..'</div></div>\n'
 
 ct=Template(ct)
 
-mg.write(ct:Pop(Response(200,'text/html','utf-8',ct.len,ct.gzip)..'\r\n'))
+mg.write(ct:Pop(Response(200,'text/html','utf-8',ct.len,ct.gzip)
+  ..'Cross-Origin-Embedder-Policy: require-corp\r\n'
+  ..'Cross-Origin-Opener-Policy: same-origin\r\n'
+  ..'\r\n'))

@@ -29,7 +29,8 @@ end
 
 ct={
   title='番組情報',
-  searchlinks=true
+  searchlinks=true,
+  fixedTabs=true
 }
 
 --検索等のリンクを生成
@@ -42,14 +43,14 @@ ct.main='<main class="tab-swipe mdl-layout__content">\n'
 
 if not End and epgInfo then
 
-  ct.progres=r or SIDE_PANEL
+  ct.reserve=r
 
   ct.main=ct.main..'<section class="mdl-layout__tab-panel" id="recset">\n'
 
     ..'<form id="set" method="POST" action="'..PathToRoot()..'api/SetReserve'..(r and '?id='..r.reserveID or '')..'" data-action="add" data-onid="'..onid..'" data-tsid="'..tsid..'" data-sid="'..sid..'" data-eid="'..eid..'">\n'
     ..'<div class="form mdl-grid mdl-grid--no-spacing">\n'
     ..'<div class="mdl-cell mdl-cell--12-col mdl-grid mdl-grid--no-spacing"><div class="mdl-cell mdl-cell--3-col mdl-cell--2-col-tablet mdl-cell--middle">プリセット</div>\n'
-    ..'<div class="pulldown mdl-cell mdl-cell--6-col mdl-cell--9-col-desktop mdl-grid mdl-grid--no-spacing"><select name="presetID"'..(r and ' data-reseveid="'..r.reserveID..'"' or '')..'>\n'
+    ..'<div class="pulldown mdl-cell mdl-cell--6-col mdl-cell--9-col-desktop mdl-grid mdl-grid--no-spacing"><select name="presetID"'..(r and ' data-reserve="'..r.reserveID..'"' or '')..'>\n'
   preset=false
   rs=r and r.recSetting or nil
   for i,v in ipairs(edcb.EnumRecPresetInfo()) do
@@ -61,8 +62,8 @@ if not End and epgInfo then
       ct.main=ct.main..'<option value="'..v.id..'">'..v.name..'\n'
     end
   end
-  if SIDE_PANEL or r then
-    ct.main=ct.main..'<option id="reserved" value="65535"'..(preset and '' or ' selected')..(r and '' or ' style="display:none;"')..'>予約時'
+  if r then
+    ct.main=ct.main..'<option id="reserved" value="65535"'..Selected(not preset)..(r and '' or ' style="display:none;"')..'>予約時'
   end
   ct.main=ct.main..'</select></div></div>\n'
 
@@ -77,7 +78,8 @@ if not End and epgInfo then
     ..'</section>\n'
 
     ..(recording and '<section class="mdl-layout__tab-panel" id="movie">\n<div class="mdl-grid mdl-grid--no-spacing">\n'
-      ..PlayerTemplate('<video id="video" preload="none" data-reid="'..r.reserveID..'" data-info=\'{"duration":'..r.durationSecond..',\'audio\':'..#audio..'}\' class="is_cast"></video>\n', audio)
+      ..PlayerTemplate('preload="none"', audio)
+      ..'<div class="is_cast hidden" data-reid="'..r.reserveID..'" data-meta=\'{"duration":'..r.durationSecond..', "audio":'..#audio..'}\'></div>'
       ..'</div>\n</section>\n' or '')
     ..'</div>\n'
 
@@ -91,13 +93,13 @@ if not End and epgInfo then
   ct.tab='<a href="#detail" class="mdl-layout__tab is-active">番組詳細</a>\n'
     ..'<a href="#recset" class="mdl-layout__tab">録画設定</a>\n'
     ..(recording and '<a href="#movie" id="movie_tab" class="mdl-layout__tab">再生</a>\n' or '')
-
-  if recording then ct.menu='<li class="ext mdl-menu__item"><label for="load_subtitles" class="mdl-layout-spacer">字幕の読み込み</label><span><label class="mdl-switch mdl-js-switch" for="load_subtitles"><input type="checkbox" id="load_subtitles" class="mdl-switch__input" checked></label></span></li>' end
-
 end
 
 ct.main=ct.main..'</div>\n</div>\n'..(hidden and hidden or '')
 
 ct=Template(ct)
 
-mg.write(ct:Pop(Response(200,'text/html','utf-8',ct.len,ct.gzip)..'\r\n'))
+mg.write(ct:Pop(Response(200,'text/html','utf-8',ct.len,ct.gzip)
+  ..'Cross-Origin-Embedder-Policy: require-corp\r\n'
+  ..'Cross-Origin-Opener-Policy: same-origin\r\n'
+  ..'\r\n'))
